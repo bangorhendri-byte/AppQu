@@ -14,7 +14,7 @@
  * ============================================================================
  */
 
-const CACHE_VERSION = 'v1.87.2';
+const CACHE_VERSION = 'v1.88.0';
 const CACHE_NAME = `usahaqu-shell-${CACHE_VERSION}`;
 
 // Aset statis inti untuk precaching

@@ -1,7 +1,7 @@
 {
   "appName": "Usaha Qu",
-  "version": "1.87.2",
-  "versionCode": 89,
+  "version": "1.88.0",
+  "versionCode": 90,
   "releaseDate": "2026-10-19",
   "minSupportedVersion": "1.80.0",
   "changelog": "Perbaikan status bar safe area jam & baterai HP, optimasi modul BengkelQu, dan auto-update system.",
