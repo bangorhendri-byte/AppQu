@@ -1,8 +1,8 @@
 {
   "appName": "Usaha Qu",
-  "version": "1.87.0",
-  "versionCode": 87,
-  "releaseDate": "2026-10-18",
+  "version": "1.87.1",
+  "versionCode": 88,
+  "releaseDate": "2026-10-19",
   "minSupportedVersion": "1.80.0",
   "changelog": "Perbaikan status bar safe area jam & baterai HP, optimasi modul BengkelQu, dan auto-update system.",
   "downloadUrl": "https://github.com/usahaqu/usahaqu-app/releases/latest"

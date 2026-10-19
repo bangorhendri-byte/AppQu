@@ -18,8 +18,8 @@ export interface AppVersionInfo {
   isUpdateAvailable?: boolean;
 }
 
-export const CURRENT_APP_VERSION = '1.87.0';
-export const CURRENT_VERSION_CODE = 87;
+export const CURRENT_APP_VERSION = '1.87.1';
+export const CURRENT_VERSION_CODE = 88;
 
 /**
  * Bandingkan dua versi semver (misal '1.86.0' vs '1.87.0')
