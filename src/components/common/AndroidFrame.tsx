@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Smartphone, Monitor, Wifi } from 'lucide-react';
+import { AppQuLogo } from './AppQuLogo';
 
 interface AndroidFrameProps {
   children: React.ReactNode;
@@ -68,14 +69,14 @@ export const AndroidFrame: React.FC<AndroidFrameProps> = ({
         <div className="flex items-center gap-3">
           <div 
             onClick={onOpenMasterSwitcher} 
-            className="w-8 h-8 rounded-xl bg-[#008952] flex items-center justify-center text-white font-black text-xs shadow-xs cursor-pointer hover:scale-105 active:scale-95 transition-transform"
-            title="Klik untuk Buka UsahaQu Master Switcher"
+            className="cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+            title="Klik untuk Buka AppQu Master Switcher"
           >
-            BQ
+            <AppQuLogo size={32} rounded="rounded-xl" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-slate-900 tracking-tight">UsahaQu v1.86</span>
+              <span className="font-extrabold text-slate-900 tracking-tight">AppQu v1.88</span>
               <span className="text-slate-300">/</span>
               <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 text-[11px]">
                 {activeModuleName}

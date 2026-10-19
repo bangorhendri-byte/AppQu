@@ -31,6 +31,7 @@ import {
   ShieldCheck,
   CheckCircle2
 } from 'lucide-react';
+import { AppQuLogo } from './AppQuLogo';
 
 export type UsahaQuFeatureTarget = 
   | 'pos-kasir'
@@ -65,14 +66,12 @@ export const ModuleTemplateDrawerModal: React.FC<ModuleTemplateDrawerModalProps>
         {/* Header Drawer */}
         <div className="bg-gradient-to-r from-[#008952] via-emerald-800 to-slate-900 text-white p-5 shrink-0 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-white text-[#008952] font-black text-xl flex items-center justify-center shadow-md">
-              UQ
-            </div>
+            <AppQuLogo size={46} rounded="rounded-2xl" className="ring-2 ring-white/30 shadow-md" />
             <div>
               <div className="flex items-center gap-1.5">
                 <h3 className="font-extrabold text-base tracking-tight">Pusat Modul & Template</h3>
                 <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.2 rounded-full uppercase">
-                  UsahaQu
+                  AppQu
                 </span>
               </div>
               <p className="text-xs text-emerald-100">Ekosistem POS, Radar CustomerQu & Multi-Usaha</p>
@@ -306,7 +305,7 @@ export const ModuleTemplateDrawerModal: React.FC<ModuleTemplateDrawerModalProps>
 
         {/* Footer Info */}
         <div className="p-3.5 bg-slate-50 border-t border-slate-200 shrink-0 text-center text-xs text-slate-500">
-          <span>UsahaQu Ekosistem v1.87 • 100% Gratis, Cepat & Tanpa Biaya Berlangganan</span>
+          <span>AppQu Ekosistem v1.88 • 100% Gratis, Cepat & Tanpa Biaya Berlangganan</span>
         </div>
 
       </div>

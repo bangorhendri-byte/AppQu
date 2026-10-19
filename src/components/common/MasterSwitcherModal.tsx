@@ -24,6 +24,7 @@ import {
   activateLicenseKey 
 } from '../../engine/licenseEngine';
 import { UpgradeToPremiumModal } from '../modals/UpgradeToPremiumModal';
+import { AppQuLogo } from './AppQuLogo';
 
 export type EcosystemId = 'bengkel' | 'kedai' | 'klinik' | 'ritel' | 'titip' | 'customerqu';
 
@@ -197,18 +198,16 @@ export const MasterSwitcherModal: React.FC<MasterSwitcherModalProps> = ({
         <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white p-5 relative">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center font-black text-white text-base shadow-lg shadow-emerald-900/40">
-                UQ
-              </div>
+              <AppQuLogo size={42} rounded="rounded-2xl" />
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-extrabold tracking-tight">UsahaQu v1.83</h3>
+                  <h3 className="text-base font-extrabold tracking-tight">AppQu v1.88</h3>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                     MASTER ECOSYSTEM
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 mt-0.5">
-                  Pilih Modul & Layout Operasional Bisnis Anda
+                  Pusat Modul & Layout Operasional Bisnis Anda
                 </p>
               </div>
             </div>
@@ -257,12 +256,12 @@ export const MasterSwitcherModal: React.FC<MasterSwitcherModalProps> = ({
           {showKeyInput && (
             <form onSubmit={handleActivateKey} className="mt-3 p-3 bg-white/10 rounded-2xl border border-white/15 space-y-2">
               <label className="text-[11px] font-bold text-slate-200 block">
-                Aktivasi Serial Key UsahaQu Pro:
+                Aktivasi Serial Key AppQu Pro:
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="UQ-PRO-XXXX-XXXX"
+                  placeholder="APPQU-PRO-XXXX-XXXX"
                   value={serialInput}
                   onChange={(e) => setSerialInput(e.target.value)}
                   className="flex-1 px-3 py-1.5 rounded-xl bg-white text-slate-900 text-xs font-mono font-bold uppercase focus:outline-none"

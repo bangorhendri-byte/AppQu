@@ -11,6 +11,7 @@
 
 import React from 'react';
 import { Bell, MapPin, ShoppingCart, Sparkles } from 'lucide-react';
+import { AppQuLogo } from './AppQuLogo';
 
 interface UniversalTopHeaderProps {
   currentViewName?: string;
@@ -36,23 +37,21 @@ export const UniversalTopHeader: React.FC<UniversalTopHeaderProps> = ({
   return (
     <header className="w-full bg-[#008952] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 shadow-md shrink-0 z-30 select-none">
       
-      {/* 1. KIRI: LOGO USAHAQU (Tombol Poin Akses Utama) */}
+      {/* 1. KIRI: LOGO APPQU (Tombol Poin Akses Utama) */}
       <button
         type="button"
         onClick={onOpenModuleDrawer}
         className="flex items-center gap-2 text-left cursor-pointer group active:scale-95 transition-transform focus:outline-none"
-        title="Buka Pusat Modul & Template UsahaQu"
+        title="Buka Pusat Modul & Template AppQu"
       >
         <div className="relative">
-          <div className="w-9 h-9 rounded-2xl bg-white text-[#008952] font-black text-sm flex items-center justify-center shadow-md ring-2 ring-emerald-300/40 group-hover:ring-white group-hover:scale-105 transition-all">
-            UQ
-          </div>
+          <AppQuLogo size={36} rounded="rounded-xl" className="ring-2 ring-white/30 group-hover:ring-white group-hover:scale-105 transition-all shadow-md" />
           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-[#008952] animate-pulse" />
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-1 leading-none">
             <span className="font-black text-sm tracking-tight text-white group-hover:text-emerald-100 transition-colors">
-              UsahaQu
+              AppQu
             </span>
             <span className="text-[9px] bg-emerald-800/80 text-emerald-200 px-1 py-0.2 rounded font-mono font-bold border border-emerald-600/40">
               Menu ▾

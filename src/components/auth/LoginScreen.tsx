@@ -11,6 +11,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { UserSession } from '../../types';
+import { AppQuLogo } from '../common/AppQuLogo';
 
 interface LoginScreenProps {
   onLoginSuccess: (session: UserSession) => void;
@@ -102,25 +103,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   return (
     <div 
       style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}
-      className="flex-1 bg-gradient-to-b from-emerald-50 via-white to-slate-50 flex flex-col justify-between p-6 select-none animate-in fade-in"
+      className="flex-1 bg-gradient-to-b from-orange-50/60 via-white to-slate-50 flex flex-col justify-between p-6 select-none animate-in fade-in"
     >
       {/* Top Brand Header */}
       <div className="pt-4 flex flex-col items-center text-center">
-        {/* App Logo with solid green rounded background */}
+        {/* App Logo from user's uploaded emblem */}
         <div className="relative mb-3">
-          <div className="w-20 h-20 rounded-3xl bg-[#008952] text-white flex items-center justify-center shadow-xl shadow-emerald-700/25 ring-4 ring-emerald-100">
-            <Wrench className="w-10 h-10 stroke-[2.2]" />
-          </div>
-          <div className="absolute -bottom-1 -right-1 bg-white text-[#008952] text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs border border-emerald-200">
-            v1.60
+          <AppQuLogo size={80} rounded="rounded-3xl" className="ring-4 ring-orange-200/80 shadow-2xl" />
+          <div className="absolute -bottom-1 -right-1 bg-white text-[#FF751F] text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs border border-orange-200">
+            v1.88
           </div>
         </div>
 
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-          Bengkel Qu <span className="text-[#008952]">1.60</span>
+          App<span className="text-[#FF751F]">Qu</span> <span className="text-slate-400 font-bold text-lg">1.88</span>
         </h1>
-        <p className="text-xs text-slate-500 font-medium mt-1 max-w-[260px]">
-          Sistem Manajemen Operasional Bengkel Motor & Mobil Modern
+        <p className="text-xs text-slate-500 font-medium mt-1 max-w-[280px]">
+          Aplikasi Manajemen Terpadu UMKM Masa Kini (POS & CustomerQu)
         </p>
       </div>
 

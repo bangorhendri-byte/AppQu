@@ -1,6 +1,6 @@
 {
-  "short_name": "Usaha Qu",
-  "name": "Usaha Qu 1.85 - App Management UMKM Masa Kini",
+  "short_name": "AppQu",
+  "name": "AppQu 1.88 - App Management UMKM Masa Kini",
   "icons": [
     {
       "src": "/icon.svg",
@@ -10,7 +10,7 @@
     }
   ],
   "start_url": "/",
-  "background_color": "#008952",
+  "background_color": "#FF7A1A",
   "theme_color": "#008952",
   "display": "standalone",
   "orientation": "portrait"

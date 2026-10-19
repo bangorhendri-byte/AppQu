@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { MenuModuleConfig, ServiceQueue, WorkshopProfile, UserSession, SubscriptionState } from '../../types';
 import { IconRenderer } from '../common/IconRenderer';
+import { AppQuLogo } from '../common/AppQuLogo';
 
 interface HomeDashboardProps {
   modules: MenuModuleConfig[];
@@ -162,22 +163,19 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               type="button"
               onClick={onOpenEcosystemSwitcher}
               className="relative text-left cursor-pointer focus:outline-hidden transition-transform active:scale-95 group"
-              title="Klik Logo BQ untuk Ganti Modul Ekosistem (KedaiQu, KlinikQu, RitelQu, Titip Qu)"
+              title="Klik Logo AppQu untuk Ganti Modul Ekosistem"
             >
-              <div className="w-12 h-12 rounded-full bg-white text-[#008952] font-black text-lg flex items-center justify-center shadow-md ring-2 ring-emerald-300/40 group-hover:ring-white group-hover:scale-105 transition-all">
-                BQ
+              <AppQuLogo size={46} rounded="rounded-2xl" className="ring-2 ring-white/50 group-hover:scale-105 transition-all shadow-md" />
+              <div className="absolute -top-1 -right-1 bg-amber-400 border border-white text-[8px] font-black text-slate-950 px-1 py-0.2 rounded-full shadow-xs uppercase">
+                PRO
               </div>
-              <div className="absolute -top-1 -right-1 bg-slate-900 border border-emerald-300 text-[8px] font-black text-emerald-300 px-1 py-0.2 rounded-full shadow-xs uppercase">
-                UQ
-              </div>
-              <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-400 border-2 border-[#008952] rounded-full" />
             </button>
             <div>
               <button
                 type="button"
                 onClick={onOpenEcosystemSwitcher}
                 className="flex items-center gap-1.5 text-left cursor-pointer group"
-                title="Buka UsahaQu Master Switcher"
+                title="Buka AppQu Master Switcher"
               >
                 <span className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider group-hover:text-white transition-colors">
                   BENGKEL QU
