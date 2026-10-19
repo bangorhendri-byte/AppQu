@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .pt-safe {
+    padding-top: max(env(safe-area-inset-top, 0px), 3.25rem);
+  }
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.75rem);
+  }
+  .pl-safe {
+    padding-left: max(env(safe-area-inset-left, 0px), 1rem);
+  }
+  .pr-safe {
+    padding-right: max(env(safe-area-inset-right, 0px), 1rem);
+  }
+  .safe-top-only {
+    padding-top: max(env(safe-area-inset-top, 0px), 3.25rem);
+  }
+  .safe-bottom-only {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
+  }
+}
+
+/* Cetak Thermal Nota Kasir (58mm/80mm) POS Core & Standee Meja QR Toko */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #pos-thermal-receipt,
+  #pos-thermal-receipt *,
+  #standee-print-target,
+  #standee-print-target * {
+    visibility: visible !important;
+  }
+  #pos-thermal-receipt {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    margin: 0 auto !important;
+    padding: 2mm !important;
+    box-shadow: none !important;
+    border: none !important;
+    font-family: monospace !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    z-index: 999999 !important;
+  }
+  #standee-print-target {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) scale(1.1) !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    border: 2px solid #000 !important;
+    z-index: 999999 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Style Penguncian Fitur & Modul (Locked Features & Overlays) */
+.locked-card {
+  position: relative;
+  overflow: hidden;
+  filter: grayscale(40%);
+  opacity: 0.85;
+  transition: all 0.2s ease-in-out;
+}
+
+.locked-card:hover {
+  filter: grayscale(15%);
+  opacity: 1;
+}
+
+.locked-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(1.5px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.875rem;
+  border-radius: inherit;
+  z-index: 10;
+  transition: background 0.2s ease;
+}
+
+.locked-card:hover .locked-overlay {
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.lock-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 800;
+  font-size: 0.65rem;
+  letter-spacing: 0.025em;
+  border: 1px solid #fcd34d;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.lock-gold-glow {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.35);
+}
+

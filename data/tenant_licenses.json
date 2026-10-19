@@ -1,0 +1,12 @@
+{
+  "demo-tenant-1": {
+    "tenant_id": "demo-tenant-1",
+    "email": "user@example.com",
+    "plan_type": "paid_plan",
+    "is_paid": true,
+    "valid_until": "2027-10-15T16:31:50.125Z",
+    "updated_at": "2026-10-15T16:31:50.125Z",
+    "nama_paket": "Paket Combo",
+    "last_reference": "DEV-TP-1792081899118-3DDS"
+  }
+}

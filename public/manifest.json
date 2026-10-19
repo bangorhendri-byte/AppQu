@@ -1,0 +1,17 @@
+{
+  "short_name": "Usaha Qu",
+  "name": "Usaha Qu 1.85 - App Management UMKM Masa Kini",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#008952",
+  "theme_color": "#008952",
+  "display": "standalone",
+  "orientation": "portrait"
+}

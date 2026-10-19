@@ -1,0 +1,8 @@
+{
+  "name": "AppQu 1.88",
+  "description": "App Management UMKM Masa Kini",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

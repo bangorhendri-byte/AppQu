@@ -1,0 +1,172 @@
+name: Auto Version, Build & Release Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Tipe perubahan versi'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Auto Version, Compile & Publish Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'false'
+      CAPACITOR_TELEMETRY: 'false'
+      BUMP_TYPE: ${{ github.event.inputs.bump_type }}
+
+    steps:
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 2. Setup Node.js (v22 LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 3. Auto-Bump Version (Besar / Sedang / Kecil)
+        id: versioning
+        run: |
+          node scripts/auto-version.js
+
+      - name: 4. Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: 5. Setup Android SDK Tools
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platforms;android-35 build-tools;35.0.0'
+
+      - name: 6. Prepare Environment & Debug Keystore
+        run: |
+          if [ ! -f .env ]; then
+            cp .env.example .env 2>/dev/null || touch .env
+          fi
+
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: 7. Install Dependencies & Build Web App
+        run: |
+          npm install --legacy-peer-deps
+          npm run build
+
+      - name: 8. Sync Capacitor Android Platform
+        run: |
+          if [ ! -d "android" ] || [ ! -f "android/gradlew" ]; then
+            echo "[INFO] Menambahkan platform android via Capacitor..."
+            npx cap add android
+          fi
+
+          npx cap sync android
+
+          if [ -d "android/app" ]; then
+            cp ~/.android/debug.keystore android/app/debug.keystore 2>/dev/null || true
+          fi
+
+          if [ -n "$ANDROID_HOME" ]; then
+            echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          fi
+
+          chmod +x android/gradlew 2>/dev/null || true
+
+      - name: 9. Build APK with Gradle
+        timeout-minutes: 15
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace -x test -x lint
+          cd ..
+
+      - name: 10. Siapkan Berkas APK Rilis
+        run: |
+          NEW_VER="${{ steps.versioning.outputs.new_version }}"
+          if [ -z "$NEW_VER" ]; then
+            NEW_VER="1.86.0"
+          fi
+
+          mkdir -p output-apk
+          APK_FILE=$(find android/app/build/outputs/apk/debug -type f -name "*.apk" 2>/dev/null | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            APK_FILE=$(find . -type f \( -name "*debug.apk" -o -name "*.apk" \) | grep -v "node_modules" | head -n 1)
+          fi
+
+          if [ -n "$APK_FILE" ] && [ -f "$APK_FILE" ]; then
+            cp "$APK_FILE" "output-apk/UsahaQu-v${NEW_VER}.apk"
+            cp "$APK_FILE" "output-apk/UsahaQu-latest.apk"
+            cp public/version.json output-apk/version.json
+            echo "[SUCCESS] File APK siap di: output-apk/UsahaQu-v${NEW_VER}.apk"
+            ls -lh output-apk/
+          else
+            echo "[ERROR] File APK tidak ditemukan!"
+            exit 1
+          fi
+
+      - name: 11. Commit Version Bump ke Repository
+        run: |
+          NEW_VER="${{ steps.versioning.outputs.new_version }}"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add package.json public/version.json android/app/build.gradle capacitor.config.json index.html metadata.json public/sw.js src/utils/appUpdateChecker.ts
+          git commit -m "chore(release): bump version to v${NEW_VER} [skip ci]" || echo "Tidak ada perubahan versi yang perlu di-commit"
+          git push origin HEAD:${{ github.ref_name }} || echo "Push commit dilewati"
+
+      - name: 12. Create GitHub Release & Upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.versioning.outputs.new_version }}"
+          name: "Usaha Qu v${{ steps.versioning.outputs.new_version }}"
+          body: |
+            ## 🚀 Usaha Qu v${{ steps.versioning.outputs.new_version }} (Build #${{ steps.versioning.outputs.version_code }})
+            
+            Pembaruan otomatis dari git push (`${{ steps.versioning.outputs.bump_type }}`).
+            
+            ### 📱 Unduh & Pasang di HP:
+            - Unduh file **`UsahaQu-v${{ steps.versioning.outputs.new_version }}.apk`** di bawah.
+            - Buka dan instal di ponsel Android Anda.
+            
+            ### 🌟 Ekosistem yang Tersedia:
+            1. **BengkelQu** (Otomotif & Servis POS)
+            2. **KedaiQu** (Cafe, Resto & F&B Modern)
+            3. **KlinikQu** (Klinik, Rekam Medis & Apotek)
+            4. **RitelQu** (Minimarket, Toko & Barcode POS)
+            5. **Titip Qu** (Konsinyasi, Reseller & Bagi Hasil)
+            
+            *Dibuat otomatis oleh GitHub Actions Pipeline.*
+          files: |
+            output-apk/UsahaQu-v${{ steps.versioning.outputs.new_version }}.apk
+            output-apk/UsahaQu-latest.apk
+            output-apk/version.json
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 13. Upload Artifact Backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: "UsahaQu-v${{ steps.versioning.outputs.new_version }}-APK"
+          path: output-apk/UsahaQu-v${{ steps.versioning.outputs.new_version }}.apk
+          retention-days: 30
+          if-no-files-found: error

@@ -1,0 +1,17 @@
+{
+  "short_name": "Bengkel Qu",
+  "name": "Bengkel Qu 1.60 - Manajemen Bengkel",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#008952",
+  "theme_color": "#008952",
+  "display": "standalone",
+  "orientation": "portrait"
+}

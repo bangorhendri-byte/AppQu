@@ -1,0 +1,40 @@
+{
+  "DEV-TP-1792081899118-3DDS": {
+    "reference": "DEV-TP-1792081899118-3DDS",
+    "merchant_ref": "UQ-1792081899118-4405",
+    "payment_method": "QRIS",
+    "payment_name": "QRIS (Gopay / OVO / Dana / ShopeePay / BCA)",
+    "customer_name": "user",
+    "customer_email": "user@example.com",
+    "customer_phone": "081234567890",
+    "callback_url": "https://ais-dev-5y7iqfvsmvm6xrei5oqfut-776952057620.asia-east1.run.app/api/tripay-webhook",
+    "return_url": "https://ais-dev-5y7iqfvsmvm6xrei5oqfut-776952057620.asia-east1.run.app?payment_success=true",
+    "amount": 189000,
+    "fee_merchant": 0,
+    "fee_customer": 1323,
+    "total_amount": 189000,
+    "fee": 1323,
+    "checkout_url": "https://ais-dev-5y7iqfvsmvm6xrei5oqfut-776952057620.asia-east1.run.app/api/tripay-mock-checkout?ref=DEV-TP-1792081899118-3DDS",
+    "status": "PAID",
+    "expired_time": 1792168299,
+    "qr_string": "00020101021226600016ID.CO.TRIPAY.WWW01189360000217920818991185204581253033605802ID5912UsahaQu POS6007Jakarta62070703A016304",
+    "qr_url": "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=00020101021226600016ID.CO.TRIPAY.WWW01189360000217920818991185204581253033605802ID5912UsahaQu%20POS6007Jakarta62070703A016304",
+    "pay_code": "",
+    "instructions": [
+      {
+        "title": "Petunjuk Pembayaran QRIS",
+        "steps": [
+          "Buka aplikasi BCA Mobile, GoPay, OVO, Dana, atau ShopeePay.",
+          "Pilih menu Scan / Bayar QR.",
+          "Scan kode QR yang tampil di layar.",
+          "Periksa nama merchant: UsahaQu POS dan total tagihan.",
+          "Masukkan PIN akun Anda untuk menyelesaikan pembayaran."
+        ]
+      }
+    ],
+    "tenant_id": "demo-tenant-1",
+    "nama_paket": "Paket Combo",
+    "created_at": "2026-10-15T16:31:39.118Z",
+    "paid_at": "2026-10-15T16:31:50.125Z"
+  }
+}

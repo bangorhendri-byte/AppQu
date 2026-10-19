@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>UsahaQu v1.83 - Kasir POS Offline & Master Ecosystem</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { -webkit-tap-highlight-color: transparent; }
+    .custom-scroll::-webkit-scrollbar { height: 4px; width: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+    .animate-wizard { animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    
+    /* Cetak Thermal Nota Kasir (58mm/80mm) */
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      #receipt-modal, #receipt-modal * {
+        visibility: visible !important;
+      }
+      #receipt-modal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        box-shadow: none !important;
+        z-index: 99999 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .thermal-paper {
+        width: 58mm !important;
+        max-width: 58mm !important;
+        margin: 0 auto !important;
+        padding: 2mm !important;
+        box-shadow: none !important;
+        border: none !important;
+        font-family: monospace !important;
+        font-size: 11px !important;
+        line-height: 1.25 !important;
+      }
+    }
+
+    /* Style Penguncian Fitur & Modul (Locked Features & Overlays) */
+    .locked-card {
+      position: relative;
+      overflow: hidden;
+      filter: grayscale(40%);
+      opacity: 0.82;
+      transition: all 0.2s ease-in-out;
+    }
+    .locked-card:hover {
+      filter: grayscale(15%);
+      opacity: 1;
+    }
+    .locked-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(1.5px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 0.875rem;
+      border-radius: inherit;
+      z-index: 10;
+      transition: background 0.2s ease;
+    }
+    .locked-card:hover .locked-overlay {
+      background: rgba(15, 23, 42, 0.35);
+    }
+    .lock-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      background: #fef3c7;
+      color: #92400e;
+      font-weight: 800;
+      font-size: 0.65rem;
+      letter-spacing: 0.025em;
+      border: 1px solid #fcd34d;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col pb-20 select-none">
+
+  <!-- =========================================================================
+       2. DYNAMIC HEADER UI
+       - Nama Toko & Logo/Inisial di kiri
+       - Nama Modul Terpilih yang sedang aktif
+       - Badge Status Lisensi dinamis (Trial, Free Lifetime, Paid)
+       ========================================================================= -->
+  <header 
+    id="dynamic-header"
+    style="padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));" 
+    class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 pb-3 flex justify-between items-center shadow-xs transition-colors duration-200"
+  >
+    <!-- Left: Brand Identity & Active Module -->
+    <div class="flex items-center gap-3 min-w-0">
+      <div 
+        id="header-store-avatar"
+        class="w-10 h-10 rounded-2xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-md shadow-blue-600/20 transition-transform active:scale-95 cursor-pointer"
+        onclick="openSetupWizard(true)"
+        title="Klik untuk Edit Profil Usaha"
+      >
+        UQ
+      </div>
+      <div class="min-w-0">
+        <div class="flex items-center gap-1.5">
+          <h1 id="header-store-name" class="text-sm sm:text-base font-extrabold text-slate-900 leading-tight truncate">
+            Usaha Mandiri Berkah
+          </h1>
+        </div>
+        <p id="header-active-module" class="text-[11px] font-semibold text-blue-700 truncate leading-none mt-0.5">
+          KedaiQu • F&B Kafe & Resto
+        </p>
+      </div>
+    </div>
+    
+    <!-- Right: Dynamic License Badge & Quick Actions -->
+    <div class="flex items-center gap-2 shrink-0">
+      <div id="license-badge-container">
+        <!-- Rendered dynamically by updateHeaderUI() -->
+        <span id="license-status-badge" class="text-[10px] bg-blue-600 text-white font-extrabold px-2.5 py-1 rounded-full shadow-xs">
+          TRIAL PREMIUM (Sisa 10 Hari)
+        </span>
+      </div>
+
+      <button 
+        onclick="openSetupWizard(true)"
+        class="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+        title="Ganti Modul / Edit Profil Usaha"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </button>
+
+      <a href="/" class="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition active:scale-95 shadow-xs">
+        App Penuh &rarr;
+      </a>
+    </div>
+  </header>
+
+  <!-- CONTAINER KONTEN UTAMA (RESPONSIVE HP & LAPTOP) -->
+  <main id="app-container" class="flex-1 p-3 sm:p-5 max-w-5xl mx-auto w-full space-y-4">
+    <!-- Konten di-render dinamis oleh switchTab() -->
+  </main>
+
+  <!-- BOTTOM NAVIGATION (4 TABS LENGKAP: POS KASIR, KATALOG, RIWAYAT, PENGATURAN) -->
+  <nav 
+    style="padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));" 
+    class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-3 pt-2 shadow-lg no-print"
+  >
+    <div class="max-w-md mx-auto flex justify-around items-center">
+      <!-- 1. Kasir POS -->
+      <button id="nav-btn-pos" onclick="switchTab('pos')" class="flex flex-col items-center gap-1 text-blue-600 focus:outline-none transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+        <span class="text-[10px] font-bold">Kasir POS</span>
+      </button>
+
+      <!-- 2. Katalog & Stok -->
+      <button id="nav-btn-inventory" onclick="switchTab('inventory')" class="flex flex-col items-center gap-1 text-slate-400 focus:outline-none transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        <span class="text-[10px] font-bold">Katalog Stok</span>
+      </button>
+
+      <!-- 3. Riwayat Transaksi & Omset -->
+      <button id="nav-btn-history" onclick="switchTab('history')" class="flex flex-col items-center gap-1 text-slate-400 focus:outline-none transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        <span class="text-[10px] font-bold">Riwayat</span>
+      </button>
+
+      <!-- 4. Pengaturan & Lisensi -->
+      <button id="nav-btn-settings" onclick="switchTab('settings')" class="flex flex-col items-center gap-1 text-slate-400 focus:outline-none transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="text-[10px] font-bold">Profil & Lisensi</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- =========================================================================
+       MODAL 1: SETUP WIZARD (Langkah 1 & 2)
+       ========================================================================= -->
+  <div id="onboarding-modal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto custom-scroll animate-wizard relative">
+      <button 
+        id="wizard-close-btn"
+        onclick="closeSetupWizard()" 
+        class="hidden absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+        title="Tutup"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="text-center">
+        <div class="w-14 h-14 bg-gradient-to-tr from-blue-700 to-indigo-600 text-white font-black rounded-2xl flex items-center justify-center mx-auto text-xl mb-2 shadow-lg shadow-blue-500/30">
+          UQ
+        </div>
+        <div class="flex items-center justify-center gap-2 mb-1">
+          <span class="text-[10px] bg-blue-100 text-blue-700 font-extrabold px-2 py-0.5 rounded-full border border-blue-200">
+            USAHAQU v1.83
+          </span>
+          <span id="wizard-step-badge" class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200">
+            Langkah 1 dari 2
+          </span>
+        </div>
+        <h2 id="wizard-title" class="font-black text-slate-900 text-lg leading-tight">
+          Pilih 1 Modul Utama Usaha Anda
+        </h2>
+        <p id="wizard-subtitle" class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+          Pilih ekosistem yang paling sesuai dengan operasional harian bisnis Anda:
+        </p>
+      </div>
+
+      <!-- LANGKAH 1: PILIHAN 5 MODUL UTAMA -->
+      <div id="wizard-step-1" class="space-y-2.5">
+        <div onclick="selectModuleCard('kedai')" id="card-kedai" class="module-card border-2 border-slate-200 hover:border-teal-500 p-3.5 rounded-2xl flex items-center gap-3.5 text-left transition-all active:scale-98 cursor-pointer bg-white hover:bg-teal-50/40 group">
+          <div class="text-3xl shrink-0 p-2 bg-teal-50 group-hover:bg-teal-100 rounded-xl transition-colors">☕</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-xs text-slate-900 group-hover:text-teal-700">KedaiQu (F&B & Kuliner)</h3>
+              <span class="check-icon hidden text-teal-600 font-black text-sm">✓</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">Kasir Menu, Dapur KDS, Denah Meja & Stok Bahan Baku</p>
+          </div>
+        </div>
+
+        <div onclick="selectModuleCard('ritel')" id="card-ritel" class="module-card border-2 border-slate-200 hover:border-blue-500 p-3.5 rounded-2xl flex items-center gap-3.5 text-left transition-all active:scale-98 cursor-pointer bg-white hover:bg-blue-50/40 group">
+          <div class="text-3xl shrink-0 p-2 bg-blue-50 group-hover:bg-blue-100 rounded-xl transition-colors">🛍️</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-xs text-slate-900 group-hover:text-blue-700">RitelQu (Minimarket & Toko)</h3>
+              <span class="check-icon hidden text-blue-600 font-black text-sm">✓</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">Barcode Scanner, SKU Produk, Multi Satuan & Kasir Cepat</p>
+          </div>
+        </div>
+
+        <div onclick="selectModuleCard('bengkel')" id="card-bengkel" class="module-card border-2 border-slate-200 hover:border-emerald-500 p-3.5 rounded-2xl flex items-center gap-3.5 text-left transition-all active:scale-98 cursor-pointer bg-white hover:bg-emerald-50/40 group">
+          <div class="text-3xl shrink-0 p-2 bg-emerald-50 group-hover:bg-emerald-100 rounded-xl transition-colors">🏍️</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-xs text-slate-900 group-hover:text-emerald-700">BengkelQu (Otomotif & Servis)</h3>
+              <span class="check-icon hidden text-emerald-600 font-black text-sm">✓</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">Antrian Servis, Jasa Mekanik, Sparepart & Cetak PKB</p>
+          </div>
+        </div>
+
+        <div onclick="selectModuleCard('klinik')" id="card-klinik" class="module-card border-2 border-slate-200 hover:border-cyan-500 p-3.5 rounded-2xl flex items-center gap-3.5 text-left transition-all active:scale-98 cursor-pointer bg-white hover:bg-cyan-50/40 group">
+          <div class="text-3xl shrink-0 p-2 bg-cyan-50 group-hover:bg-cyan-100 rounded-xl transition-colors">🏥</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-xs text-slate-900 group-hover:text-cyan-700">KlinikQu (Klinik & Apotek)</h3>
+              <span class="check-icon hidden text-cyan-600 font-black text-sm">✓</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">Rekam Medis (EMR), Resep Obat, Jadwal Dokter & Kasir Medis</p>
+          </div>
+        </div>
+
+        <div onclick="selectModuleCard('titip')" id="card-titip" class="module-card border-2 border-slate-200 hover:border-amber-500 p-3.5 rounded-2xl flex items-center gap-3.5 text-left transition-all active:scale-98 cursor-pointer bg-white hover:bg-amber-50/40 group">
+          <div class="text-3xl shrink-0 p-2 bg-amber-50 group-hover:bg-amber-100 rounded-xl transition-colors">🤝</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-xs text-slate-900 group-hover:text-amber-700">Titip Qu (Konsinyasi & Reseller)</h3>
+              <span class="check-icon hidden text-amber-600 font-black text-sm">✓</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">Bagi Hasil Vendor, Bagi Komisi Reseller & Rekap Titipan</p>
+          </div>
+        </div>
+
+        <button onclick="goToWizardStep2()" class="w-full mt-4 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md shadow-blue-600/30 transition active:scale-98 flex items-center justify-center gap-1.5">
+          <span>Lanjutkan ke Profil Usaha</span>
+          <span>&rarr;</span>
+        </button>
+      </div>
+
+      <!-- LANGKAH 2: FORM PROFIL USAHA -->
+      <form id="wizard-step-2" onsubmit="handleWizardSubmit(event)" class="hidden space-y-3.5">
+        <div>
+          <label class="text-[11px] font-bold text-slate-700 block mb-1">
+            Email Pengguna / Akun <span class="text-rose-500">*</span>
+          </label>
+          <input type="email" id="form-user-email" required placeholder="pemilik@usahaqu.id" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+        </div>
+
+        <div>
+          <label class="text-[11px] font-bold text-slate-700 block mb-1">
+            Nama Toko / Usaha <span class="text-rose-500">*</span>
+          </label>
+          <input type="text" id="form-store-name" required placeholder="Kedai Kopi Berkah / Toko Jaya" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+        </div>
+
+        <div>
+          <label class="text-[11px] font-bold text-slate-700 block mb-1">Alamat Usaha</label>
+          <textarea id="form-store-address" rows="2" placeholder="Jl. Raya Utama No. 88, Kota Anda" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"></textarea>
+        </div>
+
+        <div>
+          <label class="text-[11px] font-bold text-slate-700 block mb-1">
+            Nomor Telepon / WhatsApp <span class="text-rose-500">*</span>
+          </label>
+          <input type="tel" id="form-store-phone" required placeholder="081234567890" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+        </div>
+
+        <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-start gap-2.5">
+          <span class="text-base">🎁</span>
+          <p class="text-[11px] text-emerald-800 leading-snug">
+            <strong>Bonus Otomatis:</strong> Akses <strong>TRIAL PREMIUM 10 Hari</strong> aktif langsung. Bebas coba semua fitur tanpa batasan kuota transaksi.
+          </p>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="goToWizardStep1()" class="flex-1 py-3 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs transition">
+            &larr; Kembali
+          </button>
+          <button type="submit" class="flex-2 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition active:scale-98">
+            Selesai & Buka Kasir &rarr;
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 2: FORM TAMBAH / EDIT ITEM KATALOG (CRUD SEDERHANA DI INDEXEDDB)
+       ========================================================================= -->
+  <div id="product-modal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto custom-scroll animate-wizard">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+        <h3 id="product-modal-title" class="font-extrabold text-slate-900 text-sm">Tambah Barang / Jasa</h3>
+        <button onclick="closeProductModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="product-form" onsubmit="handleSaveProduct(event)" class="space-y-3">
+        <input type="hidden" id="prod-form-id" value="">
+
+        <div>
+          <label class="text-[11px] font-bold text-slate-700 block mb-1">Nama Barang / Produk / Jasa <span class="text-rose-500">*</span></label>
+          <input type="text" id="prod-form-name" required placeholder="Contoh: Kopi Susu Aren / Oli Mesin" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label class="text-[11px] font-bold text-slate-700 block mb-1">Kategori <span class="text-rose-500">*</span></label>
+          <input type="text" id="prod-form-category" required placeholder="Contoh: Minuman, Makanan, Sparepart, Medis" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[11px] font-bold text-slate-700 block mb-1">Harga Jual (Rp) <span class="text-rose-500">*</span></label>
+            <input type="number" id="prod-form-price" min="0" step="500" required placeholder="15000" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-700 block mb-1">Stok Lokal Awal <span class="text-rose-500">*</span></label>
+            <input type="number" id="prod-form-stock" min="0" required placeholder="50" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
+        <div class="p-2.5 bg-blue-50 rounded-xl border border-blue-100 flex items-center gap-2 text-[11px] text-blue-800">
+          <span>💾</span>
+          <span>Tersimpan 100% lokal offline di IndexedDB browser Anda.</span>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeProductModal()" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50">
+            Batal
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition active:scale-95">
+            Simpan Data
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 3: NOTA / STRUK THERMAL BLUETOOTH & PRINT BROWSER
+       ========================================================================= -->
+  <div id="receipt-modal" class="hidden fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border border-slate-100 max-h-[95vh] overflow-y-auto custom-scroll animate-wizard">
+      
+      <!-- Top Modal Header (Hidden saat Print) -->
+      <div class="flex justify-between items-center pb-2 border-b border-slate-100 no-print">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-black">✓</span>
+          <h3 class="font-black text-slate-900 text-sm">Transaksi Berhasil!</h3>
+        </div>
+        <button onclick="closeReceiptModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- KERTAS STRUK THERMAL (58mm/80mm Style) -->
+      <div id="receipt-paper-view" class="thermal-paper bg-white p-4 border border-dashed border-slate-300 rounded-2xl shadow-inner font-mono text-xs text-slate-800 space-y-2">
+        <!-- Rendered by generateReceiptHTML -->
+      </div>
+
+      <!-- Action Buttons (Hidden saat Print) -->
+      <div class="space-y-2 pt-2 no-print">
+        <button 
+          onclick="printReceipt()" 
+          class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-black text-white font-black text-xs shadow-md flex items-center justify-center gap-2 active:scale-98 transition"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          <span>Cetak Struk (Browser / Thermal)</span>
+        </button>
+
+        <button 
+          onclick="shareReceiptWhatsApp()" 
+          class="w-full py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center gap-1.5 transition"
+        >
+          <span>💬 Kirim Teks Struk via WhatsApp</span>
+        </button>
+
+        <button 
+          onclick="startNewTransaction()" 
+          class="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs transition"
+        >
+          + Transaksi Baru
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       LOGIKA ES6 MODULES & POS CORE INDEXEDDB INTEGRATION
+       ========================================================================= -->
+  <script type="module">
+    import * as DB from './js/indexedDbManager.js';
+    import * as License from './js/licenseEngine.js';
+    import * as PosCore from './js/posCore.js';
+
+    // Expose ke window
+    window.UsahaQuDB = DB;
+    window.UsahaQuLicense = License;
+    window.UsahaQuPos = PosCore;
+
+    // State Aplikasi
+    let currentSelectedModule = 'kedai';
+    let currentTab = 'pos';
+    let cart = []; // [{ id, name, price, qty, subtotal, category }]
+    let selectedPaymentMethod = 'tunai'; // 'tunai' | 'qris'
+    let cashGiven = 0;
+    let customerName = 'Pelanggan Umum';
+    let activeCategoryFilter = 'Semua';
+    let catalogSearchTerm = '';
+    let lastCompletedTransaction = null;
+
+    const MODULE_META = {
+      kedai: { name: 'KedaiQu', label: 'KedaiQu • F&B Kafe & Resto', emoji: '☕', color: '#0D9488' },
+      ritel: { name: 'RitelQu', label: 'RitelQu • Minimarket & Toko', emoji: '🛍️', color: '#2563EB' },
+      bengkel: { name: 'BengkelQu', label: 'BengkelQu • Otomotif & Servis', emoji: '🏍️', color: '#059669' },
+      klinik: { name: 'KlinikQu', label: 'KlinikQu • Klinik & Apotek', emoji: '🏥', color: '#0891B2' },
+      titip: { name: 'Titip Qu', label: 'Titip Qu • Konsinyasi & Reseller', emoji: '🤝', color: '#D97706' }
+    };
+
+    // =========================================================================
+    // 3. AUTO-LAUNCH & NAVIGATION LOGIC
+    // =========================================================================
+    async function initApp() {
+      try {
+        await DB.openDatabase();
+        await DB.seedInitialDataIfEmpty();
+      } catch (err) {
+        console.warn('IndexedDB auto-seed warning:', err);
+      }
+
+      const rawProfile = localStorage.getItem('usahaqu_store_profile');
+      const savedType = localStorage.getItem('usahaqu_type');
+
+      if (!rawProfile || !savedType) {
+        openSetupWizard(false);
+      } else {
+        try {
+          const profile = JSON.parse(rawProfile);
+          currentSelectedModule = profile.primaryModule || savedType || 'kedai';
+          // Seed katalog default jika belum ada
+          await PosCore.seedDefaultCatalogIfEmpty(currentSelectedModule);
+          updateHeaderUI(profile);
+          closeSetupWizard();
+          switchTab('pos');
+        } catch (e) {
+          openSetupWizard(false);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 2. DYNAMIC HEADER UI UPDATE
+    // =========================================================================
+    function updateHeaderUI(profile) {
+      const storeName = profile?.storeName || 'Usaha Mandiri Berkah';
+      const moduleKey = currentSelectedModule || 'kedai';
+      const meta = MODULE_META[moduleKey] || MODULE_META.kedai;
+
+      const storeNameEl = document.getElementById('header-store-name');
+      const avatarEl = document.getElementById('header-store-avatar');
+      if (storeNameEl) storeNameEl.innerText = storeName;
+      if (avatarEl) {
+        const words = storeName.trim().split(' ');
+        const initials = words.length > 1 
+          ? (words[0][0] + words[1][0]).toUpperCase() 
+          : storeName.substring(0, 2).toUpperCase();
+        avatarEl.innerText = initials || 'UQ';
+      }
+
+      const activeModuleEl = document.getElementById('header-active-module');
+      if (activeModuleEl) {
+        activeModuleEl.innerText = meta.label;
+      }
+
+      const license = License.getLicense();
+      const trialDays = License.getTrialDaysRemaining();
+      const badgeContainer = document.getElementById('license-badge-container');
+
+      if (badgeContainer) {
+        if (license.status === 'trial') {
+          badgeContainer.innerHTML = `
+            <span class="text-[10px] bg-blue-600 text-white font-extrabold px-2.5 py-1 rounded-full shadow-xs flex items-center gap-1">
+              <span>●</span>
+              <span>TRIAL PREMIUM (Sisa ${trialDays} Hari)</span>
+            </span>
+          `;
+        } else if (license.status === 'pro_active') {
+          badgeContainer.innerHTML = `
+            <span class="text-[10px] bg-emerald-600 text-white font-extrabold px-2.5 py-1 rounded-full shadow-xs flex items-center gap-1">
+              <span>👑</span>
+              <span>PREMIUM ACTIVE</span>
+            </span>
+          `;
+        } else {
+          badgeContainer.innerHTML = `
+            <span class="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1">
+              <span>⚡</span>
+              <span>FREE PLAN (1 Modul Free)</span>
+            </span>
+          `;
+        }
+      }
+    }
+
+    // =========================================================================
+    // TAB NAVIGATION CONTROLLER
+    // =========================================================================
+    window.switchTab = async function(tab) {
+      currentTab = tab;
+      ['pos', 'inventory', 'history', 'settings'].forEach(id => {
+        const btn = document.getElementById(`nav-btn-${id}`);
+        if (btn) {
+          if (id === tab) {
+            btn.className = 'flex flex-col items-center gap-1 text-blue-600 focus:outline-none transition-colors';
+          } else {
+            btn.className = 'flex flex-col items-center gap-1 text-slate-400 focus:outline-none transition-colors';
+          }
+        }
+      });
+
+      const container = document.getElementById('app-container');
+      if (!container) return;
+
+      if (tab === 'pos') await renderPosView(container);
+      else if (tab === 'inventory') await renderInventoryView(container);
+      else if (tab === 'history') await renderHistoryView(container);
+      else if (tab === 'settings') renderSettingsView(container);
+    };
+
+    // =========================================================================
+    // TAB 1: KASIR POS (LAYAR TRANSAKSI & CHECKOUT OFFLINE INDEXEDDB)
+    // =========================================================================
+    async function renderPosView(container) {
+      const meta = MODULE_META[currentSelectedModule] || MODULE_META.kedai;
+      
+      // Ambil produk dari IndexedDB (pos_catalog)
+      const products = await PosCore.getProducts({
+        search: catalogSearchTerm,
+        category: activeCategoryFilter,
+        module: currentSelectedModule
+      });
+
+      const categories = await PosCore.getUniqueCategories(currentSelectedModule);
+      const totalAmount = cart.reduce((acc, it) => acc + it.subtotal, 0);
+      const totalItemsCount = cart.reduce((acc, it) => acc + it.qty, 0);
+      
+      const changeAmount = selectedPaymentMethod === 'tunai' ? (cashGiven - totalAmount) : 0;
+      const isCashSufficient = selectedPaymentMethod === 'qris' || (cashGiven >= totalAmount && totalAmount > 0);
+
+      container.innerHTML = `
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          
+          <!-- KOLOM KIRI: KATALOG BARANG & PENCARIAN (lg:col-span-7) -->
+          <div class="lg:col-span-7 space-y-3">
+            
+            <!-- Search & Info Bar -->
+            <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-slate-200 flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input 
+                type="text" 
+                id="pos-search-input"
+                value="${catalogSearchTerm}" 
+                placeholder="Cari barang / jasa di ${meta.name}..." 
+                oninput="handleSearchChange(this.value)"
+                class="w-full text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none"
+              />
+              ${catalogSearchTerm ? `
+                <button onclick="clearSearch()" class="text-xs text-slate-400 hover:text-slate-600 px-1 font-bold">×</button>
+              ` : ''}
+            </div>
+
+            <!-- Category Filter Chips -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scroll text-xs">
+              ${categories.map(cat => `
+                <button 
+                  onclick="setCategoryFilter('${cat}')"
+                  class="px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition text-xs shrink-0 ${
+                    activeCategoryFilter === cat 
+                      ? 'bg-blue-600 text-white shadow-xs' 
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }"
+                >
+                  ${cat}
+                </button>
+              `).join('')}
+            </div>
+
+            <!-- Product Grid Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              ${products.length === 0 ? `
+                <div class="col-span-full bg-white p-8 rounded-2xl border border-dashed border-slate-300 text-center space-y-2">
+                  <p class="text-2xl">📦</p>
+                  <p class="font-bold text-xs text-slate-700">Tidak ada produk ditemukan</p>
+                  <p class="text-[11px] text-slate-400">Silakan tambahkan produk baru di menu Katalog & Stok</p>
+                  <button onclick="switchTab('inventory')" class="mt-2 py-1.5 px-3 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs">
+                    + Kelola Katalog
+                  </button>
+                </div>
+              ` : products.map(item => {
+                const inCart = cart.find(c => c.id === item.id);
+                const isOutOfStock = Number(item.stock) <= 0;
+
+                return `
+                  <button 
+                    onclick="addToCart('${item.id}')"
+                    ${isOutOfStock ? 'disabled' : ''}
+                    class="p-3 bg-white rounded-2xl border border-slate-200 hover:border-blue-500 hover:shadow-md text-left transition-all active:scale-95 flex flex-col justify-between group relative overflow-hidden ${
+                      isOutOfStock ? 'opacity-50 cursor-not-allowed bg-slate-50' : 'cursor-pointer'
+                    }"
+                  >
+                    ${inCart ? `
+                      <span class="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                        ${inCart.qty}
+                      </span>
+                    ` : ''}
+
+                    <div>
+                      <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 block truncate">${item.category}</span>
+                      <h4 class="font-bold text-xs text-slate-900 group-hover:text-blue-700 line-clamp-2 mt-0.5 leading-snug">
+                        ${item.name}
+                      </h4>
+                    </div>
+
+                    <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+                      <span class="text-xs font-black text-blue-700">
+                        ${PosCore.formatRupiah(item.price)}
+                      </span>
+                      <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                        item.stock > 5 ? 'bg-emerald-50 text-emerald-700' :
+                        item.stock > 0 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'
+                      }">
+                        ${item.stock > 0 ? `Sisa: ${item.stock}` : 'Habis'}
+                      </span>
+                    </div>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- KOLOM KANAN: KERANJANG BELANJA & CHECKOUT (lg:col-span-5) -->
+          <div class="lg:col-span-5">
+            <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200 space-y-3 sticky top-20">
+              
+              <!-- Cart Header -->
+              <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">🛒</span>
+                  <h3 class="font-extrabold text-xs text-slate-900">Keranjang Belanja</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] bg-blue-50 text-blue-700 font-extrabold px-2 py-0.5 rounded-full">
+                    ${totalItemsCount} Item
+                  </span>
+                  ${cart.length > 0 ? `
+                    <button onclick="clearCart()" class="text-[10px] text-rose-600 hover:underline font-bold">
+                      Kosongkan
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+
+              <!-- Cart Item List -->
+              <div class="max-h-56 overflow-y-auto custom-scroll divide-y divide-slate-100 pr-1">
+                ${cart.length === 0 ? `
+                  <div class="py-8 text-center text-slate-400 space-y-1">
+                    <p class="text-2xl">🛍️</p>
+                    <p class="text-xs font-bold text-slate-600">Keranjang Masih Kosong</p>
+                    <p class="text-[11px]">Klik barang di katalog untuk menambahkan</p>
+                  </div>
+                ` : cart.map(item => `
+                  <div class="py-2.5 flex items-center justify-between gap-2">
+                    <div class="min-w-0 flex-1">
+                      <h5 class="font-bold text-xs text-slate-800 truncate">${item.name}</h5>
+                      <span class="text-[10px] text-slate-500 font-medium">
+                        ${PosCore.formatRupiah(item.price)}
+                      </span>
+                    </div>
+
+                    <!-- Qty Controls -->
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <button 
+                        onclick="updateCartItemQty('${item.id}', ${item.qty - 1})"
+                        class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 font-black text-slate-700 flex items-center justify-center text-xs transition"
+                      >
+                        -
+                      </button>
+                      <span class="w-6 text-center text-xs font-black text-slate-900">${item.qty}</span>
+                      <button 
+                        onclick="updateCartItemQty('${item.id}', ${item.qty + 1})"
+                        class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 font-black text-slate-700 flex items-center justify-center text-xs transition"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <div class="text-right shrink-0 w-20">
+                      <p class="font-extrabold text-xs text-slate-900">${PosCore.formatRupiah(item.subtotal)}</p>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- Subtotal & Total -->
+              <div class="pt-2 border-t border-slate-100 space-y-2">
+                <div class="flex justify-between items-center text-xs">
+                  <span class="text-slate-500 font-medium">Total Tagihan:</span>
+                  <span class="text-lg font-black text-blue-700">${PosCore.formatRupiah(totalAmount)}</span>
+                </div>
+
+                <!-- Input Nama Pelanggan (Opsional) -->
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 block mb-0.5">Nama Pelanggan (Struk):</label>
+                  <input 
+                    type="text" 
+                    id="cart-customer-name"
+                    value="${customerName}" 
+                    oninput="customerName = this.value"
+                    placeholder="Pelanggan Umum" 
+                    class="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <!-- Pilihan Metode Pembayaran: Tunai & QRIS Manual -->
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 block mb-1">Metode Pembayaran:</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button 
+                      type="button"
+                      onclick="setPaymentMethod('tunai')"
+                      class="py-2 px-3 rounded-xl border font-extrabold text-xs flex items-center justify-center gap-1.5 transition ${
+                        selectedPaymentMethod === 'tunai' 
+                          ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-xs' 
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }"
+                    >
+                      <span>💵 Tunai</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onclick="setPaymentMethod('qris')"
+                      class="py-2 px-3 rounded-xl border font-extrabold text-xs flex items-center justify-center gap-1.5 transition ${
+                        selectedPaymentMethod === 'qris' 
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-xs' 
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }"
+                    >
+                      <span>📱 QRIS Manual</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Kalkulator Kembalian (Khusus Tunai) -->
+                ${selectedPaymentMethod === 'tunai' ? `
+                  <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-200 space-y-2">
+                    <div class="flex items-center justify-between text-[11px]">
+                      <span class="font-bold text-slate-700">Uang Tunai Diterima:</span>
+                      <input 
+                        type="number" 
+                        min="0"
+                        step="1000"
+                        id="cash-input"
+                        value="${cashGiven || ''}" 
+                        oninput="handleCashInput(this.value)"
+                        placeholder="Rp 0"
+                        class="w-28 px-2 py-1 text-right rounded-lg border border-slate-300 font-black text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <!-- Quick Cash Buttons -->
+                    <div class="flex flex-wrap gap-1">
+                      <button onclick="setQuickCash(${totalAmount})" class="text-[10px] font-bold px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-700">
+                        Uang Pas
+                      </button>
+                      <button onclick="setQuickCash(10000)" class="text-[10px] font-bold px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-700">
+                        10rb
+                      </button>
+                      <button onclick="setQuickCash(20000)" class="text-[10px] font-bold px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-700">
+                        20rb
+                      </button>
+                      <button onclick="setQuickCash(50000)" class="text-[10px] font-bold px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-700">
+                        50rb
+                      </button>
+                      <button onclick="setQuickCash(100000)" class="text-[10px] font-bold px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-700">
+                        100rb
+                      </button>
+                    </div>
+
+                    <!-- Kalkulator Kembalian Display -->
+                    <div class="pt-1 flex justify-between items-center text-xs">
+                      <span class="font-bold text-slate-600">Kembalian:</span>
+                      ${changeAmount >= 0 ? `
+                        <span class="font-black text-emerald-700 text-sm">
+                          ${PosCore.formatRupiah(changeAmount)}
+                        </span>
+                      ` : `
+                        <span class="font-bold text-rose-600 text-xs">
+                          Kurang ${PosCore.formatRupiah(Math.abs(changeAmount))}
+                        </span>
+                      `}
+                    </div>
+                  </div>
+                ` : `
+                  <!-- Info QRIS Manual -->
+                  <div class="p-2.5 bg-indigo-50/70 border border-indigo-200 rounded-2xl flex items-center gap-2.5">
+                    <span class="text-xl">📲</span>
+                    <p class="text-[11px] text-indigo-900 leading-tight">
+                      <strong>QRIS Kasir:</strong> Tunjukkan stiker QRIS toko Anda ke pelanggan. Cek notifikasi mutasi masuk sebelum selesaikan transaksi.
+                    </p>
+                  </div>
+                `}
+
+                <!-- Tombol Bayar / Selesai Transaksi -->
+                <button 
+                  onclick="handleCheckout()"
+                  ${!isCashSufficient || cart.length === 0 ? 'disabled' : ''}
+                  class="w-full mt-2 py-3 px-4 rounded-2xl font-black text-xs text-white shadow-md transition active:scale-98 flex items-center justify-center gap-2 ${
+                    isCashSufficient && cart.length > 0 
+                      ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30 cursor-pointer' 
+                      : 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                  }"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  <span>Bayar / Selesai Transaksi (${PosCore.formatRupiah(totalAmount)})</span>
+                </button>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // TAB 2: KELOLA KATALOG & STOK LOKAL (CRUD SEDERHANA DI INDEXEDDB)
+    // =========================================================================
+    async function renderInventoryView(container) {
+      const meta = MODULE_META[currentSelectedModule] || MODULE_META.kedai;
+      const products = await PosCore.getProducts({ module: currentSelectedModule });
+      const totalStock = products.reduce((acc, it) => acc + (Number(it.stock) || 0), 0);
+
+      container.innerHTML = `
+        <div class="space-y-4">
+          <!-- Header Bar -->
+          <div class="bg-white p-4 rounded-3xl shadow-xs border border-slate-200 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+            <div>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600">Database Lokal IndexedDB</span>
+              <h2 class="font-extrabold text-slate-900 text-base">Kelola Katalog & Stok Lokal</h2>
+              <p class="text-xs text-slate-500 mt-0.5">${products.length} Item terdaftar • Total ${totalStock} unit stok</p>
+            </div>
+
+            <button 
+              onclick="openProductModal()"
+              class="py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition active:scale-95 flex items-center justify-center gap-1.5 self-start sm:self-auto"
+            >
+              <span>+ Tambah Barang/Jasa</span>
+            </button>
+          </div>
+
+          <!-- Product Catalog List / Table -->
+          <div class="bg-white rounded-3xl shadow-xs border border-slate-200 overflow-hidden">
+            ${products.length === 0 ? `
+              <div class="p-8 text-center text-slate-400 space-y-2">
+                <p class="text-3xl">📦</p>
+                <p class="font-bold text-xs text-slate-700">Belum ada barang di katalog</p>
+                <button onclick="openProductModal()" class="py-2 px-4 rounded-xl bg-blue-600 text-white font-bold text-xs">
+                  Tambah Item Pertama
+                </button>
+              </div>
+            ` : `
+              <div class="divide-y divide-slate-100">
+                ${products.map(item => `
+                  <div class="p-4 flex items-center justify-between gap-3 hover:bg-slate-50 transition">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2">
+                        <h4 class="font-bold text-xs text-slate-900 truncate">${item.name}</h4>
+                        <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 uppercase">
+                          ${item.category}
+                        </span>
+                      </div>
+                      <p class="text-xs font-black text-blue-700 mt-1">
+                        ${PosCore.formatRupiah(item.price)}
+                      </p>
+                    </div>
+
+                    <div class="text-right flex items-center gap-3 shrink-0">
+                      <div>
+                        <span class="text-[11px] font-bold ${
+                          item.stock > 5 ? 'text-emerald-700' :
+                          item.stock > 0 ? 'text-amber-700' : 'text-rose-600'
+                        }">
+                          Stok: ${item.stock}
+                        </span>
+                      </div>
+
+                      <div class="flex items-center gap-1">
+                        <button 
+                          onclick="editProduct('${item.id}')"
+                          class="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition"
+                          title="Edit Item"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        </button>
+
+                        <button 
+                          onclick="deleteProductItem('${item.id}', '${item.name.replace(/'/g, "\\'")}')"
+                          class="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
+                          title="Hapus Item"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // TAB 3: RIWAYAT TRANSAKSI & OMSET HARIAN
+    // =========================================================================
+    async function renderHistoryView(container) {
+      const summary = await PosCore.getTodaySummary(currentSelectedModule);
+      const transactions = await PosCore.getTodayTransactions(currentSelectedModule);
+
+      container.innerHTML = `
+        <div class="space-y-4">
+          <!-- Summary Cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-slate-200">
+              <span class="text-[10px] font-bold text-slate-400 block uppercase">Omset Hari Ini</span>
+              <p class="text-base font-black text-blue-700 mt-0.5">${PosCore.formatRupiah(summary.totalRevenue)}</p>
+            </div>
+            <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-slate-200">
+              <span class="text-[10px] font-bold text-slate-400 block uppercase">Transaksi Selesai</span>
+              <p class="text-base font-black text-slate-900 mt-0.5">${summary.transactionCount} Nota</p>
+            </div>
+            <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-slate-200">
+              <span class="text-[10px] font-bold text-slate-400 block uppercase">Barang Terjual</span>
+              <p class="text-base font-black text-emerald-700 mt-0.5">${summary.totalItemsSold} Unit</p>
+            </div>
+            <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-slate-200">
+              <span class="text-[10px] font-bold text-slate-400 block uppercase">Tunai vs QRIS</span>
+              <p class="text-xs font-bold text-slate-700 mt-1">
+                💵 ${PosCore.formatRupiah(summary.cashRevenue)}<br/>
+                📱 ${PosCore.formatRupiah(summary.qrisRevenue)}
+              </p>
+            </div>
+          </div>
+
+          <!-- Transaction List -->
+          <div class="bg-white rounded-3xl shadow-xs border border-slate-200 overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center">
+              <h3 class="font-extrabold text-xs text-slate-900">Daftar Penjualan Hari Ini</h3>
+              <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">
+                ${summary.todayDate}
+              </span>
+            </div>
+
+            ${transactions.length === 0 ? `
+              <div class="p-8 text-center text-slate-400 space-y-1">
+                <p class="text-2xl">📝</p>
+                <p class="text-xs font-bold text-slate-700">Belum ada transaksi hari ini</p>
+                <p class="text-[11px]">Buka kasir POS untuk melayani pelanggan pertama Anda</p>
+              </div>
+            ` : `
+              <div class="divide-y divide-slate-100">
+                ${transactions.map(tx => `
+                  <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50 transition">
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="font-mono text-xs font-bold text-slate-800">${tx.invoiceNo}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          tx.paymentMethod === 'tunai' ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-50 text-indigo-700'
+                        }">
+                          ${tx.paymentMethod.toUpperCase()}
+                        </span>
+                        <span class="text-[10px] text-slate-400 font-medium">${tx.time}</span>
+                      </div>
+                      <p class="text-[11px] text-slate-500 mt-1">
+                        Pelanggan: <strong>${tx.customerName}</strong> • ${tx.items.length} jenis barang (${tx.totalItems} pcs)
+                      </p>
+                    </div>
+
+                    <div class="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                      <span class="text-sm font-black text-slate-900">
+                        ${PosCore.formatRupiah(tx.total)}
+                      </span>
+                      <button 
+                        onclick="showReceiptModalById('${tx.id}')"
+                        class="py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
+                      >
+                        Lihat Struk
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // TAB 4: PENGATURAN & LISENSI
+    // =========================================================================
+    function renderSettingsView(container) {
+      const rawProfile = localStorage.getItem('usahaqu_store_profile');
+      const profile = rawProfile ? JSON.parse(rawProfile) : { storeName: 'Usaha Mandiri Berkah' };
+      const license = License.getLicense();
+      const trialDays = License.getTrialDaysRemaining();
+
+      container.innerHTML = `
+        <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-200 space-y-4 max-w-lg mx-auto">
+          <div class="pb-2 border-b border-slate-100">
+            <h2 class="font-extrabold text-slate-900 text-sm">Pengaturan Usaha & Lisensi</h2>
+            <p class="text-xs text-slate-400">Konfigurasi profil dan status hak akses sistem</p>
+          </div>
+
+          <!-- Store Profile Card -->
+          <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-slate-800">${profile.storeName || 'UsahaQu'}</span>
+              <button onclick="openSetupWizard(true)" class="text-[11px] font-bold text-blue-600 hover:underline">
+                Ubah Profil
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500">${profile.address || '-'}</p>
+            <p class="text-[11px] text-slate-500">WA: ${profile.phone || '-'} • Email: ${profile.email || '-'}</p>
+          </div>
+
+          <!-- License Card -->
+          <div class="p-3.5 bg-blue-50/60 rounded-2xl border border-blue-200 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-blue-900">Status Lisensi</span>
+              <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                license.status === 'trial' ? 'bg-blue-600 text-white' :
+                license.status === 'pro_active' ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-amber-900'
+              }">
+                ${license.status.toUpperCase()}
+              </span>
+            </div>
+            <p class="text-[11px] text-blue-800">
+              Modul Utama Terpilih: <strong>${(license.selected_primary_module || 'kedai').toUpperCase()}</strong>
+            </p>
+            ${license.status === 'trial' ? `
+              <p class="text-[10px] text-blue-600 font-semibold">
+                Masa Trial Premium berakhir dalam ${trialDays} hari. Setelah itu sistem otomatis fallback ke mode Free Lifetime untuk modul utama Anda.
+              </p>
+            ` : ''}
+          </div>
+
+          <button 
+            onclick="openSetupWizard(true)"
+            class="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition"
+          >
+            ⚙️ Buka Setup Wizard (Pilih Modul & Profil)
+          </button>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // CART & CHECKOUT CONTROLLER ACTIONS
+    // =========================================================================
+    window.addToCart = async function(productId) {
+      const product = await PosCore.getProductById(productId);
+      if (!product) return;
+
+      if (Number(product.stock) <= 0) {
+        alert('Stok barang ini sudah habis!');
+        return;
+      }
+
+      const existingIndex = cart.findIndex(c => c.id === productId);
+      if (existingIndex > -1) {
+        if (cart[existingIndex].qty >= product.stock) {
+          alert(`Stok tidak mencukupi! Sisa stok lokal: ${product.stock}`);
+          return;
+        }
+        cart[existingIndex].qty += 1;
+        cart[existingIndex].subtotal = cart[existingIndex].qty * cart[existingIndex].price;
+      } else {
+        cart.push({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          qty: 1,
+          subtotal: product.price,
+          category: product.category
+        });
+      }
+
+      if (selectedPaymentMethod === 'tunai' && cashGiven === 0) {
+        // Auto set cash suggestion to rounded or total
+        const totalAmount = cart.reduce((acc, it) => acc + it.subtotal, 0);
+        cashGiven = totalAmount;
+      }
+
+      switchTab('pos');
+    };
+
+    window.updateCartItemQty = function(productId, newQty) {
+      if (newQty <= 0) {
+        cart = cart.filter(c => c.id !== productId);
+      } else {
+        const item = cart.find(c => c.id === productId);
+        if (item) {
+          item.qty = newQty;
+          item.subtotal = item.qty * item.price;
+        }
+      }
+      switchTab('pos');
+    };
+
+    window.clearCart = function() {
+      cart = [];
+      cashGiven = 0;
+      switchTab('pos');
+    };
+
+    window.setPaymentMethod = function(method) {
+      selectedPaymentMethod = method;
+      if (method === 'qris') {
+        const totalAmount = cart.reduce((acc, it) => acc + it.subtotal, 0);
+        cashGiven = totalAmount;
+      }
+      switchTab('pos');
+    };
+
+    window.handleCashInput = function(val) {
+      cashGiven = Number(val) || 0;
+      switchTab('pos');
+    };
+
+    window.setQuickCash = function(val) {
+      cashGiven = Number(val) || 0;
+      switchTab('pos');
+    };
+
+    window.handleSearchChange = function(val) {
+      catalogSearchTerm = val;
+      renderPosView(document.getElementById('app-container'));
+    };
+
+    window.clearSearch = function() {
+      catalogSearchTerm = '';
+      renderPosView(document.getElementById('app-container'));
+    };
+
+    window.setCategoryFilter = function(cat) {
+      activeCategoryFilter = cat;
+      renderPosView(document.getElementById('app-container'));
+    };
+
+    // PROSES CHECKOUT TRANSAKSI & KURANGI STOK DI INDEXEDDB
+    window.handleCheckout = async function() {
+      if (cart.length === 0) {
+        alert('Keranjang belanja kosong!');
+        return;
+      }
+
+      const totalAmount = cart.reduce((acc, it) => acc + it.subtotal, 0);
+      if (selectedPaymentMethod === 'tunai' && cashGiven < totalAmount) {
+        alert('Uang tunai yang diterima masih kurang!');
+        return;
+      }
+
+      try {
+        const tx = await PosCore.checkoutTransaction({
+          items: cart,
+          paymentMethod: selectedPaymentMethod,
+          cashReceived: selectedPaymentMethod === 'tunai' ? cashGiven : totalAmount,
+          customerName: customerName || 'Pelanggan Umum',
+          module: currentSelectedModule
+        });
+
+        lastCompletedTransaction = tx;
+        cart = [];
+        cashGiven = 0;
+
+        // Buka modal pop-up struk
+        showReceiptModal(tx);
+        
+        // Refresh POS View di background
+        renderPosView(document.getElementById('app-container'));
+      } catch (err) {
+        alert('Gagal menyelesaikan transaksi: ' + err.message);
+      }
+    };
+
+    // =========================================================================
+    // MODAL STRUK / NOTA TRANSAKSI
+    // =========================================================================
+    function showReceiptModal(tx) {
+      const modal = document.getElementById('receipt-modal');
+      const paper = document.getElementById('receipt-paper-view');
+      if (!modal || !paper) return;
+
+      paper.innerHTML = `
+        <div class="text-center pb-2 border-b border-dashed border-slate-300">
+          <h4 class="font-black text-sm uppercase">${tx.storeProfile?.name || 'USAHAQU POS'}</h4>
+          <p class="text-[10px] text-slate-500">${tx.storeProfile?.address || '-'}</p>
+          <p class="text-[10px] text-slate-500">WA: ${tx.storeProfile?.phone || '-'}</p>
+        </div>
+
+        <div class="py-1 border-b border-dashed border-slate-300 text-[10px] text-slate-600 space-y-0.5">
+          <div class="flex justify-between">
+            <span>No Invoice:</span>
+            <span class="font-bold text-slate-800">${tx.invoiceNo}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Waktu:</span>
+            <span>${tx.date} ${tx.time}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Pelanggan:</span>
+            <span>${tx.customerName}</span>
+          </div>
+        </div>
+
+        <!-- Rincian Item -->
+        <div class="py-2 border-b border-dashed border-slate-300 space-y-1.5">
+          ${tx.items.map(it => `
+            <div>
+              <div class="font-bold text-slate-800 text-[11px]">${it.name}</div>
+              <div class="flex justify-between text-[10px] text-slate-500 pl-2">
+                <span>${it.qty} x ${PosCore.formatRupiah(it.price)}</span>
+                <span class="font-bold text-slate-800">${PosCore.formatRupiah(it.subtotal)}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Rincian Pembayaran -->
+        <div class="pt-1 text-[11px] space-y-1">
+          <div class="flex justify-between font-black text-xs text-slate-900">
+            <span>TOTAL:</span>
+            <span>${PosCore.formatRupiah(tx.total)}</span>
+          </div>
+          <div class="flex justify-between text-[10px] text-slate-600">
+            <span>Metode:</span>
+            <span class="font-bold uppercase">${tx.paymentMethod}</span>
+          </div>
+          ${tx.paymentMethod === 'tunai' ? `
+            <div class="flex justify-between text-[10px] text-slate-600">
+              <span>Tunai Diterima:</span>
+              <span>${PosCore.formatRupiah(tx.cashReceived)}</span>
+            </div>
+            <div class="flex justify-between text-[10px] font-bold text-emerald-700">
+              <span>Kembalian:</span>
+              <span>${PosCore.formatRupiah(tx.change)}</span>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="text-center pt-3 border-t border-dashed border-slate-300 text-[9px] text-slate-400 space-y-0.5">
+          <p class="font-bold text-slate-600">TERIMA KASIH ATAS KUNJUNGAN ANDA</p>
+          <p>Barang yang sudah dibeli tidak dapat ditukar</p>
+          <p>*** UsahaQu POS v1.83 ***</p>
+        </div>
+      `;
+
+      modal.classList.remove('hidden');
+    }
+
+    window.showReceiptModalById = async function(id) {
+      const tx = await DB.getItem(DB.STORES.POS_TRANSACTIONS, id);
+      if (tx) {
+        lastCompletedTransaction = tx;
+        showReceiptModal(tx);
+      }
+    };
+
+    window.closeReceiptModal = function() {
+      const modal = document.getElementById('receipt-modal');
+      if (modal) modal.classList.add('hidden');
+    };
+
+    window.printReceipt = function() {
+      window.print();
+    };
+
+    window.shareReceiptWhatsApp = function() {
+      if (!lastCompletedTransaction) return;
+      const text = PosCore.formatReceiptText(lastCompletedTransaction);
+      const encoded = encodeURIComponent(text);
+      window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+    };
+
+    window.startNewTransaction = function() {
+      closeReceiptModal();
+      cart = [];
+      cashGiven = 0;
+      switchTab('pos');
+    };
+
+    // =========================================================================
+    // MODAL CRUD ITEM KATALOG
+    // =========================================================================
+    window.openProductModal = function(editItem = null) {
+      const modal = document.getElementById('product-modal');
+      const title = document.getElementById('product-modal-title');
+      const formId = document.getElementById('prod-form-id');
+      const formName = document.getElementById('prod-form-name');
+      const formCategory = document.getElementById('prod-form-category');
+      const formPrice = document.getElementById('prod-form-price');
+      const formStock = document.getElementById('prod-form-stock');
+
+      if (editItem) {
+        title.innerText = 'Edit Barang / Jasa';
+        formId.value = editItem.id;
+        formName.value = editItem.name;
+        formCategory.value = editItem.category || '';
+        formPrice.value = editItem.price;
+        formStock.value = editItem.stock;
+      } else {
+        title.innerText = 'Tambah Barang / Jasa Baru';
+        formId.value = '';
+        formName.value = '';
+        formCategory.value = '';
+        formPrice.value = '';
+        formStock.value = '50';
+      }
+
+      modal.classList.remove('hidden');
+    };
+
+    window.closeProductModal = function() {
+      const modal = document.getElementById('product-modal');
+      if (modal) modal.classList.add('hidden');
+    };
+
+    window.editProduct = async function(id) {
+      const item = await PosCore.getProductById(id);
+      if (item) {
+        openProductModal(item);
+      }
+    };
+
+    window.deleteProductItem = async function(id, name) {
+      if (confirm(`Apakah Anda yakin ingin menghapus "${name}" dari katalog?`)) {
+        await PosCore.deleteProduct(id);
+        switchTab('inventory');
+      }
+    };
+
+    window.handleSaveProduct = async function(event) {
+      event.preventDefault();
+      const id = document.getElementById('prod-form-id').value;
+      const name = document.getElementById('prod-form-name').value;
+      const category = document.getElementById('prod-form-category').value;
+      const price = Number(document.getElementById('prod-form-price').value) || 0;
+      const stock = Number(document.getElementById('prod-form-stock').value) || 0;
+
+      try {
+        if (id) {
+          await PosCore.updateProduct(id, { name, category, price, stock });
+        } else {
+          await PosCore.addProduct({
+            name,
+            category,
+            price,
+            stock,
+            module: currentSelectedModule
+          });
+        }
+
+        closeProductModal();
+        switchTab('inventory');
+      } catch (err) {
+        alert('Gagal menyimpan item: ' + err.message);
+      }
+    };
+
+    // =========================================================================
+    // SETUP WIZARD CONTROLLER
+    // =========================================================================
+    window.openSetupWizard = function(allowClose = false) {
+      const modal = document.getElementById('onboarding-modal');
+      const closeBtn = document.getElementById('wizard-close-btn');
+      if (closeBtn) {
+        if (allowClose) closeBtn.classList.remove('hidden');
+        else closeBtn.classList.add('hidden');
+      }
+      modal.classList.remove('hidden');
+      goToWizardStep1();
+    };
+
+    window.closeSetupWizard = function() {
+      const modal = document.getElementById('onboarding-modal');
+      if (modal) modal.classList.add('hidden');
+    };
+
+    window.selectModuleCard = function(moduleKey) {
+      currentSelectedModule = moduleKey;
+
+      document.querySelectorAll('.module-card').forEach(card => {
+        card.classList.remove('border-blue-600', 'bg-blue-50/70', 'ring-2', 'ring-blue-500/30');
+        card.classList.add('border-slate-200');
+        const check = card.querySelector('.check-icon');
+        if (check) check.classList.add('hidden');
+      });
+
+      const selectedCard = document.getElementById(`card-${moduleKey}`);
+      if (selectedCard) {
+        selectedCard.classList.remove('border-slate-200');
+        selectedCard.classList.add('border-blue-600', 'bg-blue-50/70', 'ring-2', 'ring-blue-500/30');
+        const check = selectedCard.querySelector('.check-icon');
+        if (check) check.classList.remove('hidden');
+      }
+    };
+
+    window.goToWizardStep1 = function() {
+      document.getElementById('wizard-step-1').classList.remove('hidden');
+      document.getElementById('wizard-step-2').classList.add('hidden');
+      document.getElementById('wizard-step-badge').innerText = 'Langkah 1 dari 2';
+      document.getElementById('wizard-title').innerText = 'Pilih 1 Modul Utama Usaha Anda';
+      document.getElementById('wizard-subtitle').innerText = 'Pilih ekosistem yang paling sesuai dengan operasional harian bisnis Anda:';
+      selectModuleCard(currentSelectedModule);
+    };
+
+    window.goToWizardStep2 = function() {
+      const rawProfile = localStorage.getItem('usahaqu_store_profile');
+      if (rawProfile) {
+        try {
+          const p = JSON.parse(rawProfile);
+          if (p.email) document.getElementById('form-user-email').value = p.email;
+          if (p.storeName) document.getElementById('form-store-name').value = p.storeName;
+          if (p.address) document.getElementById('form-store-address').value = p.address;
+          if (p.phone) document.getElementById('form-store-phone').value = p.phone;
+        } catch (e) {}
+      }
+
+      document.getElementById('wizard-step-1').classList.add('hidden');
+      document.getElementById('wizard-step-2').classList.remove('hidden');
+      document.getElementById('wizard-step-badge').innerText = 'Langkah 2 dari 2';
+      document.getElementById('wizard-title').innerText = 'Lengkapi Profil & Email Usaha';
+      document.getElementById('wizard-subtitle').innerText = 'Informasi ini tercetak pada nota kasir dan dokumen operasional:';
+    };
+
+    window.handleWizardSubmit = async function(event) {
+      event.preventDefault();
+
+      const email = document.getElementById('form-user-email').value.trim();
+      const storeName = document.getElementById('form-store-name').value.trim();
+      const address = document.getElementById('form-store-address').value.trim();
+      const phone = document.getElementById('form-store-phone').value.trim();
+
+      const profileData = {
+        email,
+        storeName,
+        address,
+        phone,
+        primaryModule: currentSelectedModule,
+        registeredAt: new Date().toISOString()
+      };
+
+      localStorage.setItem('usahaqu_store_profile', JSON.stringify(profileData));
+      localStorage.setItem('usahaqu_type', currentSelectedModule);
+      localStorage.setItem('uq_active_ecosystem', currentSelectedModule);
+
+      License.initLicense(currentSelectedModule, storeName, email.split('@')[0]);
+
+      try {
+        await DB.addItem(DB.STORES.GLOBAL_STAFF, {
+          id: `usr-${Date.now()}`,
+          name: email.split('@')[0],
+          email: email,
+          role: 'Owner',
+          status: 'active',
+          phone: phone
+        });
+      } catch (dbErr) {}
+
+      // Seed catalog untuk modul yang dipilih jika kosong
+      await PosCore.seedDefaultCatalogIfEmpty(currentSelectedModule);
+
+      updateHeaderUI(profileData);
+      closeSetupWizard();
+      cart = [];
+      switchTab('pos');
+
+      alert(`Selamat! Profil ${storeName} berhasil disimpan.\nLisensi TRIAL PREMIUM (10 Hari) telah aktif secara otomatis!`);
+    };
+
+    // Auto launch saat window dimuat
+    window.onload = initApp;
+  </script>
+</body>
+</html>
