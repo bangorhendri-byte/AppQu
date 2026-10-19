@@ -14,7 +14,8 @@ import {
   Store,
   Lock,
   ShieldCheck,
-  Key
+  Key,
+  Users
 } from 'lucide-react';
 import { 
   canAccessModule, 
@@ -26,7 +27,7 @@ import {
 import { UpgradeToPremiumModal } from '../modals/UpgradeToPremiumModal';
 import { AppQuLogo } from './AppQuLogo';
 
-export type EcosystemId = 'bengkel' | 'kedai' | 'klinik' | 'ritel' | 'titip' | 'customerqu';
+export type EcosystemId = 'bengkel' | 'kedai' | 'klinik' | 'ritel' | 'titip' | 'customerqu' | 'paguyubanqu';
 
 export interface EcosystemModule {
   id: EcosystemId;
@@ -126,6 +127,20 @@ export const ECOSYSTEM_MODULES: EcosystemModule[] = [
     faIcon: 'fa-map-location-dot',
     description: 'Peta live pedagang keliling, ngetem/mangkal, toko offline, live sinkron stok & lonceng panggilan.',
     badge: 'Radar Live',
+    isReady: true
+  },
+  {
+    id: 'paguyubanqu',
+    name: 'PaguyubanQu & SiagaQu',
+    tagline: 'Klaster Komunitas Warga & Siaga',
+    category: 'Sosial, Kas & Keamanan Warga',
+    layoutType: 'Grid Layout',
+    primaryColor: '#0F5257',
+    accentBg: 'bg-emerald-50 border-emerald-300 text-[#0F5257]',
+    icon: Users,
+    faIcon: 'fa-users',
+    description: 'Feed warga & lapak terintegrasi, Kas transparan OCR, surat pengantar digital, panic button sirene & ronda QR.',
+    badge: 'Klaster Warga',
     isReady: true
   }
 ];

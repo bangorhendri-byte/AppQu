@@ -1,0 +1,406 @@
+// ============================================================================
+// APPQU: SOLUSI CERDAS MASA KINI
+// Skema Database Tunggal (Unified Relational Prisma Schema)
+// Mengintegrasikan Klaster Komunitas (PaguyubanQu & SiagaQu)
+// dan Klaster Unit Usaha Lokal (UsahaQu: BengkelQu, KedaiQu, RitelQu, dll)
+// ============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ----------------------------------------------------------------------------
+// 1. ENUMS (RBAC, STATUS, & KATEGORI)
+// ----------------------------------------------------------------------------
+
+enum AppRole {
+  // Governance (Oversight / Read-only Agregat)
+  GOVERNANCE_GUBERNUR
+  GOVERNANCE_PEMDA
+  GOVERNANCE_CAMAT
+  GOVERNANCE_LURAH
+
+  // Pengurus Harian Komunitas (PaguyubanQu & SiagaQu)
+  PENGURUS_KETUA_RW
+  PENGURUS_KETUA_RT
+  PENGURUS_WAKIL_RT
+  PENGURUS_BENDAHARA
+  PENGURUS_SEKRETARIS
+  
+  // Koordinator Bidang
+  KOORDINATOR_KEAMANAN
+  KOORDINATOR_KEBERSIHAN
+  KOORDINATOR_LINGKUNGAN
+
+  // Warga & Komunitas
+  WARGA_TETAP
+  WARGA_KONTRAK
+  SATPAM_RONDA
+
+  // Klaster Pelaku Usaha Lokal (UsahaQu)
+  OWNER_BENGKEL
+  OWNER_KEDAI
+  OWNER_RITEL
+  OWNER_KLINIK
+  OWNER_TITIP
+  PEDAGANG_KELILING
+}
+
+enum FeedType {
+  PENGUMUMAN_RESMI
+  KEGIATAN_AGENDA
+  ASPIRASI_WARGA
+  POLLING_SURVEI
+  LAPAK_PROMO
+  TANGGAP_DUKA
+}
+
+enum KasType {
+  MASUK_IURAN_BULANAN
+  MASUK_DONASI_DUKA
+  MASUK_RETRIBUSI_KEBERSIHAN
+  MASUK_SUMBANGAN_SUKARELA
+  KELUAR_PERBAIKAN_FASILITAS
+  KELUAR_SANTUNAN_DUKA
+  KELUAR_OPERASIONAL_RONDA
+  KELUAR_LAINNYA
+}
+
+enum KasStatus {
+  PENDING_VERIFIKASI
+  TERVERIFIKASI
+  DITOLAK
+}
+
+enum EmergencyType {
+  KEMALINGAN
+  KEBAKARAN
+  MEDIS_DARURAT
+  BENCANA_ALAM
+  KERIBUTAN
+}
+
+enum EmergencyStatus {
+  ACTIVE_SIREN
+  INVESTIGATING
+  HANDLED
+  FALSE_ALARM
+}
+
+enum LetterStatus {
+  DRAFT
+  DIAJUKAN
+  DIVERIFIKASI_SEKRETARIS
+  DISETUJUI_KETUA_RT
+  DISETUJUI_KETUA_RW
+  SELESAI
+  DITOLAK
+}
+
+enum BusinessType {
+  BENGKEL
+  KEDAI
+  RITEL
+  KLINIK
+  TITIP
+  KELILING
+}
+
+// ----------------------------------------------------------------------------
+// 2. USERS & USER ROLES (MULTI-ROLE SYSTEM)
+// ----------------------------------------------------------------------------
+
+model User {
+  id            String         @id @default(uuid())
+  email         String?        @unique
+  phoneNumber   String         @unique
+  passwordHash  String
+  fullName      String
+  avatarUrl     String?
+  isActive      Boolean        @default(true)
+  fcmToken      String?        // Token push notifikasi untuk siren & alert
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relasi
+  roles         UserRole[]
+  wargaProfile  WargaProfile?
+  businesses    Business[]     // UsahaQu milik pengguna jika pelaku usaha
+  feeds         Feed[]
+  feedComments  FeedComment[]
+  feedVotes     FeedVote[]
+  emergencyLogs EmergencyLog[] // Pemicu Panic Button
+  patrolLogs    PatrolLog[]    // Satpam / Petugas Ronda
+  letters       Letter[]       // Pemohon surat pengantar
+  kasEntries    KasLedger[]    // Bendahara pencatat / pembayar kas
+
+  @@map("users")
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  role      AppRole
+  isPrimary Boolean  @default(false)
+  rtNumber  String?  @default("001") // RT Lingkup Otoritas
+  rwNumber  String?  @default("005") // RW Lingkup Otoritas
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("user_roles")
+}
+
+// ----------------------------------------------------------------------------
+// 3. WARGAPROFILES (DATA INDUK WARGAQU + ENKRIPSI NIK)
+// ----------------------------------------------------------------------------
+
+model WargaProfile {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  nikEncrypted   String    // NIK Terenkripsi AES-256
+  noKkEncrypted  String?   // No KK Terenkripsi
+  alamatDomisili String
+  blokNomor      String    // Contoh: Blok C4 No. 12
+  rtNumber       String    @default("001")
+  rwNumber       String    @default("005")
+  kelurahan      String    @default("Sukamaju")
+  kecamatan      String    @default("Coblong")
+  kotaKabupaten  String    @default("Bandung")
+  statusHunian   String    // Pemilik / Kontrak / Kos
+  jumlahAnggota  Int       @default(1)
+  isVerified     Boolean   @default(false)
+  verifiedAt     DateTime?
+  emergencyPhone String?   // Kontak darurat keluarga
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([rtNumber, rwNumber])
+  @@map("warga_profiles")
+}
+
+// ----------------------------------------------------------------------------
+// 4. FEEDS & FEED COMMENTS (PAGUYUBANQU COMMUNITY FORUM & AGENDA)
+// ----------------------------------------------------------------------------
+
+model Feed {
+  id          String        @id @default(uuid())
+  authorId    String
+  type        FeedType      @default(ASPIRASI_WARGA)
+  title       String
+  content     String
+  mediaUrls   String[]      // Array URL foto / dokumen
+  rtTarget    String?       // Filter target RT (null = seluruh RW)
+  rwTarget    String?
+  eventDate   DateTime?     // Tanggal agenda jika tipe KEGIATAN_AGENDA
+  eventLoc    String?       // Lokasi agenda
+  isPinned    Boolean       @default(false)
+  likeCount   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments    FeedComment[]
+  votes       FeedVote[]
+
+  @@index([type, createdAt])
+  @@map("feeds")
+}
+
+model FeedComment {
+  id        String   @id @default(uuid())
+  feedId    String
+  authorId  String
+  comment   String
+  createdAt DateTime @default(now())
+
+  feed      Feed     @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("feed_comments")
+}
+
+model FeedVote {
+  id        String   @id @default(uuid())
+  feedId    String
+  userId    String
+  optionIdx Int      // Indeks opsi polling
+  createdAt DateTime @default(now())
+
+  feed      Feed     @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([feedId, userId])
+  @@map("feed_votes")
+}
+
+// ----------------------------------------------------------------------------
+// 5. TRANSACTIONS & KASLEDGER (KAS TRANSPARAN & SMART SCAN OCR IURAN)
+// ----------------------------------------------------------------------------
+
+model KasLedger {
+  id             String    @id @default(uuid())
+  userId         String?   // Warga pembayar iuran atau penerima kas
+  rtNumber       String    @default("001")
+  rwNumber       String    @default("005")
+  type           KasType
+  title          String    // Misal: "Iuran Keamanan & Sampah Bulan Oktober 2026"
+  amount         Decimal   @db.Decimal(12, 2)
+  isIncome       Boolean   @default(true)
+  proofReceiptUrl String?  // Bukti transfer atau struk nota belanja
+  ocrExtractedText String? // Hasil pembacaan OCR Tesseract / Gemini Vision
+  status         KasStatus @default(TERVERIFIKASI)
+  verifiedById   String?   // Bendahara / Ketua RT yang memverifikasi
+  notes          String?
+  transactionDate DateTime @default(now())
+  createdAt      DateTime  @default(now())
+
+  user           User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([rtNumber, rwNumber, transactionDate])
+  @@map("kas_ledger")
+}
+
+// ----------------------------------------------------------------------------
+// 6. SMART SIAGAQU (PANIC BUTTON & PATROL CHECKPOINTS)
+// ----------------------------------------------------------------------------
+
+model EmergencyLog {
+  id               String          @id @default(uuid())
+  triggerUserId    String          // Pengguna yang memencet Panic Button
+  type             EmergencyType   @default(KEMALINGAN)
+  status           EmergencyStatus @default(ACTIVE_SIREN)
+  latitude         Float
+  longitude        Float
+  addressNotes     String          // Contoh: "Depan Pos Ronda RT 02 / Rumah No. B8"
+  nearestCctvRtsp  String?         // RTSP Stream URL CCTV warga terdekat
+  broadcastedTo    String[]        // Daftar User ID satpam & pengurus penerima override alert
+  respondedAt      DateTime?
+  responderNotes   String?
+  resolvedAt       DateTime?
+  createdAt        DateTime        @default(now())
+
+  triggerUser      User            @relation(fields: [triggerUserId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("emergency_logs")
+}
+
+model PatrolCheckpoint {
+  id          String      @id @default(uuid())
+  qrCodeToken String      @unique // Token QR fisik yang ditempel di pos/gang
+  name        String      // Misal: "Checkpoint Pos Ronda RT 01 Utara"
+  latitude    Float
+  longitude   Float
+  rtNumber    String      @default("001")
+  rwNumber    String      @default("005")
+  patrolOrder Int         @default(1)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+
+  patrolLogs  PatrolLog[]
+
+  @@map("patrol_checkpoints")
+}
+
+model PatrolLog {
+  id           String           @id @default(uuid())
+  checkpointId String
+  petugasId    String           // Satpam atau Warga yang ronda malam
+  scannedAt    DateTime         @default(now())
+  latitude     Float            // Koordinat validasi GPS saat scan
+  longitude    Float
+  isMissed     Boolean          @default(false) // Auto-flag jika jadwal terlewat
+  notes        String?          // Kondisi aman / lampu mati / pintu pagar terbuka
+
+  checkpoint   PatrolCheckpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  petugas      User             @relation(fields: [petugasId], references: [id], onDelete: Cascade)
+
+  @@index([checkpointId, scannedAt])
+  @@map("patrol_logs")
+}
+
+// ----------------------------------------------------------------------------
+// 7. LETTERS & APPROVAL WORKFLOWS (SURAT PENGANTAR DIGITAL AUTO-FILL)
+// ----------------------------------------------------------------------------
+
+model Letter {
+  id            String       @id @default(uuid())
+  applicantId   String       // User pemohon surat
+  letterType    String       // "Surat Pengantar SKCK", "Keterangan Domisili", "Keterangan Kematian", dll
+  letterNumber  String?      // Nomor registrasi surat (misal: 470/023/RT.01/X/2026)
+  purpose       String       // Keperluan surat
+  autoFillData  Json         // Snapshot data warga (NIK, Nama, KK, Alamat) saat pengajuan
+  status        LetterStatus @default(DIAJUKAN)
+  sekretarisNote String?
+  rtApproverId  String?
+  rwApproverId  String?
+  digitalQrSign String?      // QR code tanda tangan digital terverifikasi
+  pdfUrl        String?
+  submittedAt   DateTime     @default(now())
+  approvedAt    DateTime?
+
+  applicant     User         @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([applicantId, status])
+  @@map("letters")
+}
+
+// ----------------------------------------------------------------------------
+// 8. BUSINESSES & PRODUCTS (KLASTER USAHAQU & LAPAK LOKAL WARGA)
+// ----------------------------------------------------------------------------
+
+model Business {
+  id             String       @id @default(uuid())
+  ownerId        String
+  name           String
+  type           BusinessType
+  description    String?
+  phone          String
+  avatarUrl      String?
+  latitude       Float?
+  longitude      Float?
+  address        String
+  isMobileSeller Boolean      @default(false) // Pedagang Keliling (CustomerQu Radar)
+  isOpen         Boolean      @default(true)
+  rtNumber       String       @default("001")
+  rwNumber       String       @default("005")
+  publishToLapak Boolean      @default(true)  // Terbit otomatis di Lapak Komunitas PaguyubanQu
+  rating         Float        @default(4.9)
+  reviewCount    Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  owner          User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  products       Product[]
+
+  @@index([type, rtNumber, rwNumber])
+  @@map("businesses")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  businessId  String
+  name        String
+  category    String
+  price       Decimal  @db.Decimal(12, 2)
+  stock       Int      @default(0)
+  unit        String   @default("Porsi") // Pcs, Porsi, Ikat, Botol, Titik Servis
+  isAvailable Boolean  @default(true)
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, isAvailable])
+  @@map("products")
+}

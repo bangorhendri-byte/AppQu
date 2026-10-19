@@ -1,0 +1,230 @@
+-- ============================================================================
+-- APPQU: SOLUSI CERDAS MASA KINI
+-- Unified Relational PostgreSQL Database Schema (Production-Ready)
+-- Mengintegrasikan Klaster Komunitas Warga & Klaster Unit Usaha Lokal
+-- ============================================================================
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 1. ENUMS
+CREATE TYPE app_role AS ENUM (
+  'GOVERNANCE_GUBERNUR', 'GOVERNANCE_PEMDA', 'GOVERNANCE_CAMAT', 'GOVERNANCE_LURAH',
+  'PENGURUS_KETUA_RW', 'PENGURUS_KETUA_RT', 'PENGURUS_WAKIL_RT', 'PENGURUS_BENDAHARA', 'PENGURUS_SEKRETARIS',
+  'KOORDINATOR_KEAMANAN', 'KOORDINATOR_KEBERSIHAN', 'KOORDINATOR_LINGKUNGAN',
+  'WARGA_TETAP', 'WARGA_KONTRAK', 'SATPAM_RONDA',
+  'OWNER_BENGKEL', 'OWNER_KEDAI', 'OWNER_RITEL', 'OWNER_KLINIK', 'OWNER_TITIP', 'PEDAGANG_KELILING'
+);
+
+CREATE TYPE feed_type AS ENUM (
+  'PENGUMUMAN_RESMI', 'KEGIATAN_AGENDA', 'ASPIRASI_WARGA', 'POLLING_SURVEI', 'LAPAK_PROMO', 'TANGGAP_DUKA'
+);
+
+CREATE TYPE kas_type AS ENUM (
+  'MASUK_IURAN_BULANAN', 'MASUK_DONASI_DUKA', 'MASUK_RETRIBUSI_KEBERSIHAN', 'MASUK_SUMBANGAN_SUKARELA',
+  'KELUAR_PERBAIKAN_FASILITAS', 'KELUAR_SANTUNAN_DUKA', 'KELUAR_OPERASIONAL_RONDA', 'KELUAR_LAINNYA'
+);
+
+CREATE TYPE kas_status AS ENUM ('PENDING_VERIFIKASI', 'TERVERIFIKASI', 'DITOLAK');
+CREATE TYPE emergency_type AS ENUM ('KEMALINGAN', 'KEBAKARAN', 'MEDIS_DARURAT', 'BENCANA_ALAM', 'KERIBUTAN');
+CREATE TYPE emergency_status AS ENUM ('ACTIVE_SIREN', 'INVESTIGATING', 'HANDLED', 'FALSE_ALARM');
+CREATE TYPE letter_status AS ENUM ('DRAFT', 'DIAJUKAN', 'DIVERIFIKASI_SEKRETARIS', 'DISETUJUI_KETUA_RT', 'DISETUJUI_KETUA_RW', 'SELESAI', 'DITOLAK');
+CREATE TYPE business_type AS ENUM ('BENGKEL', 'KEDAI', 'RITEL', 'KLINIK', 'TITIP', 'KELILING');
+
+-- 2. USERS
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(255) UNIQUE,
+  phone_number VARCHAR(32) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  full_name VARCHAR(150) NOT NULL,
+  avatar_url TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  fcm_token TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. USER ROLES (MULTI-ROLE RBAC)
+CREATE TABLE IF NOT EXISTS user_roles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role app_role NOT NULL,
+  is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+  rt_number VARCHAR(8) DEFAULT '001',
+  rw_number VARCHAR(8) DEFAULT '005',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_user_role UNIQUE (user_id, role)
+);
+
+-- 4. WARGA PROFILES (DATA INDUK + ENKRIPSI NIK)
+CREATE TABLE IF NOT EXISTS warga_profiles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  nik_encrypted TEXT NOT NULL,
+  no_kk_encrypted TEXT,
+  alamat_domisili TEXT NOT NULL,
+  blok_nomor VARCHAR(64) NOT NULL,
+  rt_number VARCHAR(8) NOT NULL DEFAULT '001',
+  rw_number VARCHAR(8) NOT NULL DEFAULT '005',
+  kelurahan VARCHAR(100) NOT NULL DEFAULT 'Sukamaju',
+  kecamatan VARCHAR(100) NOT NULL DEFAULT 'Coblong',
+  kota_kabupaten VARCHAR(100) NOT NULL DEFAULT 'Bandung',
+  status_hunian VARCHAR(32) NOT NULL,
+  jumlah_anggota INT NOT NULL DEFAULT 1,
+  is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  verified_at TIMESTAMP WITH TIME ZONE,
+  emergency_phone VARCHAR(32),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5. FEEDS & FEED COMMENTS (PAGUYUBAN COMMUNITY FORUM)
+CREATE TABLE IF NOT EXISTS feeds (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type feed_type NOT NULL DEFAULT 'ASPIRASI_WARGA',
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  media_urls TEXT[],
+  rt_target VARCHAR(8),
+  rw_target VARCHAR(8),
+  event_date TIMESTAMP WITH TIME ZONE,
+  event_loc VARCHAR(255),
+  is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+  like_count INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS feed_comments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  feed_id UUID NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+  author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  comment TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. KAS LEDGER (TRANSPARANSI KAS & OCR IURAN)
+CREATE TABLE IF NOT EXISTS kas_ledger (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  rt_number VARCHAR(8) NOT NULL DEFAULT '001',
+  rw_number VARCHAR(8) NOT NULL DEFAULT '005',
+  type kas_type NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  amount NUMERIC(14, 2) NOT NULL,
+  is_income BOOLEAN NOT NULL DEFAULT TRUE,
+  proof_receipt_url TEXT,
+  ocr_extracted_text TEXT,
+  status kas_status NOT NULL DEFAULT 'TERVERIFIKASI',
+  verified_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  notes TEXT,
+  transaction_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. SMART SIAGAQU (PANIC BUTTON & PATROL CHECKPOINTS)
+CREATE TABLE IF NOT EXISTS emergency_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  trigger_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type emergency_type NOT NULL DEFAULT 'KEMALINGAN',
+  status emergency_status NOT NULL DEFAULT 'ACTIVE_SIREN',
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  address_notes TEXT NOT NULL,
+  nearest_cctv_rtsp TEXT,
+  broadcasted_to TEXT[],
+  responded_at TIMESTAMP WITH TIME ZONE,
+  responder_notes TEXT,
+  resolved_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS patrol_checkpoints (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  qr_code_token VARCHAR(128) NOT NULL UNIQUE,
+  name VARCHAR(150) NOT NULL,
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  rt_number VARCHAR(8) NOT NULL DEFAULT '001',
+  rw_number VARCHAR(8) NOT NULL DEFAULT '005',
+  patrol_order INT NOT NULL DEFAULT 1,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS patrol_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  checkpoint_id UUID NOT NULL REFERENCES patrol_checkpoints(id) ON DELETE CASCADE,
+  petugas_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  scanned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  is_missed BOOLEAN NOT NULL DEFAULT FALSE,
+  notes TEXT
+);
+
+-- 8. LETTERS (SURAT PENGANTAR DIGITAL)
+CREATE TABLE IF NOT EXISTS letters (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  applicant_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  letter_type VARCHAR(100) NOT NULL,
+  letter_number VARCHAR(100),
+  purpose TEXT NOT NULL,
+  auto_fill_data JSONB NOT NULL,
+  status letter_status NOT NULL DEFAULT 'DIAJUKAN',
+  sekretaris_note TEXT,
+  rt_approver_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  rw_approver_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  digital_qr_sign TEXT,
+  pdf_url TEXT,
+  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  approved_at TIMESTAMP WITH TIME ZONE
+);
+
+-- 9. BUSINESSES & PRODUCTS (KLASTER USAHAQU & LAPAK WARGA)
+CREATE TABLE IF NOT EXISTS businesses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(150) NOT NULL,
+  type business_type NOT NULL,
+  description TEXT,
+  phone VARCHAR(32) NOT NULL,
+  avatar_url TEXT,
+  latitude DOUBLE PRECISION,
+  longitude DOUBLE PRECISION,
+  address TEXT NOT NULL,
+  is_mobile_seller BOOLEAN NOT NULL DEFAULT FALSE,
+  is_open BOOLEAN NOT NULL DEFAULT TRUE,
+  rt_number VARCHAR(8) NOT NULL DEFAULT '001',
+  rw_number VARCHAR(8) NOT NULL DEFAULT '005',
+  publish_to_lapak BOOLEAN NOT NULL DEFAULT TRUE,
+  rating NUMERIC(3, 2) NOT NULL DEFAULT 4.90,
+  review_count INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS products (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  name VARCHAR(150) NOT NULL,
+  category VARCHAR(80) NOT NULL,
+  price NUMERIC(12, 2) NOT NULL,
+  stock INT NOT NULL DEFAULT 0,
+  unit VARCHAR(32) NOT NULL DEFAULT 'Porsi',
+  is_available BOOLEAN NOT NULL DEFAULT TRUE,
+  image_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- INDEXES FOR PERFORMANCE
+CREATE INDEX IF NOT EXISTS idx_warga_rt_rw ON warga_profiles(rt_number, rw_number);
+CREATE INDEX IF NOT EXISTS idx_feeds_type_created ON feeds(type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_kas_rt_rw_date ON kas_ledger(rt_number, rw_number, transaction_date DESC);
+CREATE INDEX IF NOT EXISTS idx_emergency_status ON emergency_logs(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_patrol_checkpoint_date ON patrol_logs(checkpoint_id, scanned_at DESC);
+CREATE INDEX IF NOT EXISTS idx_letters_applicant_status ON letters(applicant_id, status);
+CREATE INDEX IF NOT EXISTS idx_businesses_rt_rw_type ON businesses(rt_number, rw_number, type);
+CREATE INDEX IF NOT EXISTS idx_products_biz_available ON products(business_id, is_available);

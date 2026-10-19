@@ -29,13 +29,16 @@ import {
   Sparkles,
   ChevronRight,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Users,
+  ShieldAlert
 } from 'lucide-react';
 import { AppQuLogo } from './AppQuLogo';
 
 export type UsahaQuFeatureTarget = 
   | 'pos-kasir'
   | 'customerqu'
+  | 'paguyubanqu'
   | 'stok-inventaris'
   | 'chat-panggilan'
   | 'laporan-keuangan'
@@ -156,6 +159,37 @@ export const ModuleTemplateDrawerModal: React.FC<ModuleTemplateDrawerModalProps>
                   </div>
                   <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
                     Peta live pedagang keliling, ngetem & toko offline
+                  </p>
+                </div>
+              </button>
+
+              {/* 3. Modul PaguyubanQu & Smart SiagaQu */}
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectFeature('paguyubanqu');
+                  onClose();
+                }}
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-3 active:scale-98 sm:col-span-2 ${
+                  currentActiveFeature === 'paguyubanqu'
+                    ? 'border-[#0F5257] bg-emerald-50/70 ring-2 ring-[#0F5257]/20 shadow-xs'
+                    : 'border-emerald-200/90 hover:border-emerald-400 bg-gradient-to-r from-emerald-50/60 to-teal-50/40'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#0F5257] text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Users className="w-5 h-5 text-amber-300" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-black text-slate-900 block truncate">
+                      Klaster PaguyubanQu & Smart SiagaQu
+                    </span>
+                    <span className="text-[9px] bg-[#FB8B24] text-slate-950 px-1.5 py-0.2 rounded-full font-black uppercase">
+                      Komunitas Warga
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">
+                    Feed warga & lapak terintegrasi, kas transparan OCR, surat digital, panic button sirene & ronda QR
                   </p>
                 </div>
               </button>

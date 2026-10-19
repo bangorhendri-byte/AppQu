@@ -14,7 +14,8 @@ import {
   Lock,
   Key,
   ShieldCheck,
-  ShieldAlert
+  ShieldAlert,
+  Users
 } from 'lucide-react';
 import { MenuModuleConfig, ServiceQueue, WorkshopProfile, UserSession, SubscriptionState } from '../../types';
 import { IconRenderer } from '../common/IconRenderer';
@@ -37,6 +38,7 @@ interface HomeDashboardProps {
   onOpenSubscription?: () => void;
   onOpenEcosystemSwitcher?: () => void;
   onOpenPosCore?: () => void;
+  onOpenPaguyuban?: () => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
@@ -55,7 +57,8 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   subscription,
   onOpenSubscription,
   onOpenEcosystemSwitcher,
-  onOpenPosCore
+  onOpenPosCore,
+  onOpenPaguyuban
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [restrictedModalInfo, setRestrictedModalInfo] = useState<{
@@ -275,6 +278,36 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 </div>
                 <p className="text-[11px] text-emerald-100 truncate mt-0.5">
                   Katalog barang, keranjang checkout, kalkulator kembalian & cetak struk
+                </p>
+              </div>
+            </div>
+            <div className="w-7 h-7 rounded-lg bg-white/15 group-hover:bg-white/30 flex items-center justify-center shrink-0 transition">
+              <ChevronRight className="w-4 h-4 text-white" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Klaster Komunitas Warga: PaguyubanQu & Smart SiagaQu Quick Access Banner */}
+      {onOpenPaguyuban && (
+        <div className="px-4 mt-2.5">
+          <div 
+            onClick={onOpenPaguyuban}
+            className="bg-gradient-to-r from-[#0F5257] via-teal-900 to-slate-900 text-white rounded-2xl p-3.5 shadow-md flex items-center justify-between gap-3 cursor-pointer active:scale-98 transition group border border-teal-600/40"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0 shadow-inner">
+                <Users className="w-5 h-5 text-amber-300" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-extrabold text-xs text-white">Klaster PaguyubanQu & Smart SiagaQu</h4>
+                  <span className="text-[9px] bg-[#FB8B24] text-slate-950 font-black px-1.5 py-0.2 rounded uppercase">
+                    Warga & Keamanan
+                  </span>
+                </div>
+                <p className="text-[11px] text-teal-100 truncate mt-0.5">
+                  Feed warga & lapak lokal, kas transparan OCR, surat digital & panic button sirene
                 </p>
               </div>
             </div>

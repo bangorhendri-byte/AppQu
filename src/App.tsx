@@ -85,6 +85,7 @@ import { OnlineCatalogView } from './components/catalog/OnlineCatalogView';
 import { UniversalTopHeader } from './components/common/UniversalTopHeader';
 import { ModuleTemplateDrawerModal, UsahaQuFeatureTarget } from './components/common/ModuleTemplateDrawerModal';
 import { CustomerQuView } from './components/customerqu/CustomerQuView';
+import { PaguyubanQuView } from './components/komunitas/PaguyubanQuView';
 import { getSavedBuyerPings } from './components/customerqu/CustomerQuStorage';
 import { openDatabase, seedInitialDataIfEmpty } from './db/indexedDbManager';
 import { getLicense, setPrimaryModule } from './engine/licenseEngine';
@@ -324,7 +325,7 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const mod = params.get('modul') as EcosystemId;
-      if (mod === 'bengkel' || mod === 'kedai' || mod === 'ritel' || mod === 'klinik' || mod === 'titip') {
+      if (mod === 'bengkel' || mod === 'kedai' || mod === 'ritel' || mod === 'klinik' || mod === 'titip' || mod === 'paguyubanqu') {
         return mod;
       }
     }
@@ -334,10 +335,11 @@ export default function App() {
     if (savedType === 'retail' || savedType === 'ritel') return 'ritel';
     if (savedType === 'klinik') return 'klinik';
     if (savedType === 'titip' || savedType === 'titipqu' || savedType === 'collab') return 'titip';
+    if (savedType === 'paguyuban' || savedType === 'paguyubanqu') return 'paguyubanqu';
 
     const saved = localStorage.getItem('uq_active_ecosystem');
     if (saved === 'titipqu' || saved === 'collab') return 'titip';
-    if (saved === 'kedai' || saved === 'ritel' || saved === 'klinik') return saved as EcosystemId;
+    if (saved === 'kedai' || saved === 'ritel' || saved === 'klinik' || saved === 'paguyubanqu') return saved as EcosystemId;
     return 'bengkel'; // Default fokus BengkelQu
   });
   const [isMasterSwitcherOpen, setIsMasterSwitcherOpen] = useState(false);
@@ -420,6 +422,11 @@ export default function App() {
       case 'customerqu':
       case 'template-keliling': {
         setIsCustomerQuActive(true);
+        break;
+      }
+      case 'paguyubanqu': {
+        setIsCustomerQuActive(false);
+        setActiveEcosystem('paguyubanqu');
         break;
       }
       case 'stok-inventaris': {
@@ -1035,6 +1042,7 @@ export default function App() {
               setCurrentScreen('feature');
             }
           }}
+          onOpenPaguyuban={() => setActiveEcosystem('paguyubanqu')}
         />
       );
     }
@@ -1743,6 +1751,78 @@ export default function App() {
           onClose={() => setIsModuleDrawerOpen(false)}
           onSelectFeature={handleSelectFeatureFromDrawer}
           currentActiveFeature="titip"
+        />
+
+        <NotificationDrawer
+          isOpen={isNotifDrawerOpen}
+          onClose={() => setIsNotifDrawerOpen(false)}
+          notifications={notifications}
+          onMarkAllAsRead={handleMarkAllNotifsRead}
+          buyerPings={buyerPings}
+          onSelectPing={() => {
+            setIsCustomerQuActive(true);
+          }}
+        />
+
+        <MasterSwitcherModal
+          isOpen={isMasterSwitcherOpen}
+          onClose={() => setIsMasterSwitcherOpen(false)}
+          activeEcosystem={activeEcosystem}
+          onSelectEcosystem={(eco) => setActiveEcosystem(eco)}
+          onOpenOnboarding={() => setIsOnboardingModalOpen(true)}
+        />
+
+        <BusinessTypeOnboardingModal
+          isOpen={isOnboardingModalOpen}
+          onSelectBusiness={handleSelectBusinessType}
+          onClose={() => setIsOnboardingModalOpen(false)}
+          allowClose={!!localStorage.getItem('usahaqu_type')}
+          currentActive={activeEcosystem}
+        />
+      </AndroidFrame>
+    );
+  }
+
+  // Klaster Komunitas Warga: PaguyubanQu & Smart SiagaQu
+  if (activeEcosystem === 'paguyubanqu') {
+    return (
+      <AndroidFrame
+        activeModuleName="PaguyubanQu & Smart SiagaQu"
+        topSafeAreaColor="#0F5257"
+        onOpenMasterSwitcher={() => setIsMasterSwitcherOpen(true)}
+        onHomePress={handleGoHome}
+        onBackPress={() => setActiveEcosystem('bengkel')}
+        canGoBack={false}
+      >
+        <UniversalTopHeader
+          currentViewName="PaguyubanQu (Warga)"
+          isCustomerQuActive={false}
+          isPaguyubanActive={true}
+          onOpenModuleDrawer={() => setIsModuleDrawerOpen(true)}
+          onQuickToggleCustomerQu={handleQuickToggleCustomerQu}
+          onOpenNotifications={() => setIsNotifDrawerOpen(true)}
+          unreadCount={notifications.filter((n) => !n.read).length}
+          activePingsCount={buyerPings.filter((p) => p.status === 'active').length}
+        />
+
+        <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
+          <PaguyubanQuView
+            onBackToMain={() => setActiveEcosystem('bengkel')}
+            onOpenUsahaModule={(moduleKey) => {
+              if (moduleKey === 'customerqu') {
+                setIsCustomerQuActive(true);
+              } else {
+                setActiveEcosystem(moduleKey as EcosystemId);
+              }
+            }}
+          />
+        </div>
+
+        <ModuleTemplateDrawerModal
+          isOpen={isModuleDrawerOpen}
+          onClose={() => setIsModuleDrawerOpen(false)}
+          onSelectFeature={handleSelectFeatureFromDrawer}
+          currentActiveFeature="paguyubanqu"
         />
 
         <NotificationDrawer

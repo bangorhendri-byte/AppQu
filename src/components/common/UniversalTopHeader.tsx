@@ -16,9 +16,11 @@ import { AppQuLogo } from './AppQuLogo';
 interface UniversalTopHeaderProps {
   currentViewName?: string;
   isCustomerQuActive?: boolean;
+  isPaguyubanActive?: boolean;
   onOpenModuleDrawer: () => void;
   onQuickToggleCustomerQu: () => void;
   onOpenNotifications: () => void;
+  onOpenPaguyuban?: () => void;
   unreadCount?: number;
   activePingsCount?: number;
 }
@@ -26,16 +28,20 @@ interface UniversalTopHeaderProps {
 export const UniversalTopHeader: React.FC<UniversalTopHeaderProps> = ({
   currentViewName = 'BengkelQu',
   isCustomerQuActive = false,
+  isPaguyubanActive = false,
   onOpenModuleDrawer,
   onQuickToggleCustomerQu,
   onOpenNotifications,
+  onOpenPaguyuban,
   unreadCount = 0,
   activePingsCount = 0
 }) => {
   const totalBadges = unreadCount + activePingsCount;
 
   return (
-    <header className="w-full bg-[#008952] text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 shadow-md shrink-0 z-30 select-none">
+    <header className={`w-full text-white px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 shadow-md shrink-0 z-30 select-none ${
+      isPaguyubanActive ? 'bg-[#0F5257]' : 'bg-[#008952]'
+    }`}>
       
       {/* 1. KIRI: LOGO APPQU (Tombol Poin Akses Utama) */}
       <button
